@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>LC Waikiki Retail Pro · Manual de Usuario</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#1565C0',
+            ink:     '#0a0e1a',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html { scroll-behavior: smooth; }
+
+    .label { font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:0.35em; }
+
+    .prose h2 { font-size:2rem; font-weight:900; letter-spacing:-0.04em; color:#0a0e1a; line-height:1.1; margin-bottom:0.5rem; }
+    .prose h3 { font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:0.3em; color:#1565C0; margin-top:3rem; margin-bottom:1rem; }
+    .prose p  { font-size:15px; line-height:1.75; color:rgba(10,14,26,0.72); margin-bottom:1rem; }
+    .prose ul { margin-bottom:1.5rem; }
+    .prose ul li { font-size:15px; color:rgba(10,14,26,0.72); padding-left:1.25rem; position:relative; margin-bottom:0.5rem; }
+    .prose ul li::before { content:'—'; position:absolute; left:0; color:#1565C0; font-weight:900; }
+
+    .tip {
+      background: rgba(21,101,192,0.04);
+      border-left: 3px solid #1565C0;
+      padding: 1.1rem 1.75rem;
+      border-radius: 0 0.75rem 0.75rem 0;
+      margin-bottom: 1.25rem;
+    }
+    .tip p { margin-bottom:0; font-size:14px; color:rgba(10,14,26,0.68); }
+
+    .warn {
+      background: rgba(21,101,192,0.05);
+      border-left: 3px solid rgba(13,71,161,0.45);
+      padding: 1.1rem 1.75rem;
+      border-radius: 0 0.75rem 0.75rem 0;
+      margin-bottom: 1.25rem;
+    }
+    .warn p { margin-bottom:0; font-size:14px; color:rgba(10,40,100,0.85); }
+
+    .section-divider { display:flex; align-items:center; gap:1.25rem; margin-bottom:2.5rem; }
+
+    .nav-pill { padding:0.5rem 1.25rem; font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:0.25em; color:rgba(10,14,26,0.4); transition:color 0.2s; cursor:pointer; text-decoration:none; }
+    .nav-pill:hover { color:#1565C0; }
+
+    .step-num { background:#1565C0; color:#fff; width:1.75rem; height:1.75rem; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:11px; flex-shrink:0; }
+
+    @media print {
+      header { display:none !important; }
+      main { padding-top:0 !important; }
+    }
+  </style>
+</head>
+
+<body class="bg-white font-sans text-ink antialiased">
+
+  <!-- HEADER -->
+  <header class="fixed top-0 w-full z-50 bg-white/95 backdrop-blur-md border-b border-zinc-100 shadow-sm">
+    <div class="flex items-center justify-between px-8 md:px-16 h-16 max-w-[1280px] mx-auto">
+      <div class="flex items-center gap-4">
+        <img src="https://i.imgur.com/RZmGChq.png" alt="LC Waikiki" class="h-6 w-auto object-contain">
+        <span class="text-zinc-300">·</span>
+        <span class="label text-zinc-400">Manual de usuario</span>
+      </div>
+      <nav class="hidden md:flex items-center gap-1">
+        <a href="#acceso"      class="nav-pill">Acceso</a>
+        <a href="#entry"       class="nav-pill">Entrada</a>
+        <a href="#analysis"    class="nav-pill">Análisis</a>
+        <a href="#budget"      class="nav-pill">Budget</a>
+        <a href="#comparativo" class="nav-pill">Comparativa</a>
+        <a href="#admin"       class="nav-pill">Admin</a>
+        <a href="#metricas"    class="nav-pill">Métricas</a>
+        <a href="#elearnings"  class="nav-pill">E-learnings</a>
+        <a href="#movil"       class="nav-pill">Móvil</a>
+      </nav>
+      <span class="label text-zinc-300 hidden md:block">2026</span>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="pt-16 min-h-[55vh] flex items-center bg-[#0D47A1] relative overflow-hidden">
+    <div class="absolute inset-0 opacity-[0.04]"
+         style="background-image:repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%);background-size:20px 20px;"></div>
+    <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-white/5 blur-3xl pointer-events-none"></div>
+    <div class="relative z-10 max-w-[1280px] mx-auto px-8 md:px-16 py-24">
+      <div class="flex items-center gap-4 mb-8">
+        <img src="https://i.imgur.com/RZmGChq.png" alt="LC Waikiki" class="h-10 w-auto object-contain brightness-0 invert">
+        <span class="h-px w-8 bg-white/30"></span>
+        <span class="label text-white/50">Documento Oficial · Confidencial</span>
+      </div>
+      <h1 class="text-5xl md:text-7xl font-black text-white leading-none tracking-tight mb-6">
+        Manual de<br><span class="text-[#90CAF9]">Usuario</span>
+      </h1>
+      <p class="text-white/60 text-lg max-w-xl leading-relaxed font-medium">
+        Guía completa para Gerentes de Tienda del sistema LC Waikiki Retail Pro.
+        Captura diaria, análisis de KPIs y ejecución estratégica regional.
+      </p>
+      <div class="mt-12 flex flex-wrap gap-4">
+        <div class="bg-white/5 border border-white/10 px-6 py-4 rounded-2xl">
+          <p class="label text-white/30 mb-1">Versión</p>
+          <p class="text-white font-black">Retail Matrix v3.0</p>
+        </div>
+        <div class="bg-white/5 border border-white/10 px-6 py-4 rounded-2xl">
+          <p class="label text-white/30 mb-1">Organización</p>
+          <p class="text-white font-black">Dada Group</p>
+        </div>
+        <div class="bg-white/5 border border-white/10 px-6 py-4 rounded-2xl">
+          <p class="label text-white/30 mb-1">Cobertura</p>
+          <p class="text-white font-black">7 Países · 15 Tiendas</p>
+        </div>
+        <div class="bg-white/10 border border-white/20 px-6 py-4 rounded-2xl">
+          <p class="label text-[#90CAF9]/60 mb-1">Motor IA</p>
+          <p class="text-[#90CAF9] font-black">GPT-4o Mini</p>
+        </div>
+      </div>
+    </div>
+    <div class="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-[#90CAF9]/60 via-white/20 to-transparent"></div>
+  </section>
+
+  <!-- QUOTE -->
+  <section class="bg-zinc-50 border-b border-zinc-100">
+    <div class="max-w-[1280px] mx-auto px-8 md:px-16 py-10">
+      <p class="text-center text-base font-semibold text-zinc-500 italic leading-relaxed">
+        "Los datos no mienten. La diferencia entre una tienda buena y una tienda excelente
+        está en la frecuencia y calidad con que se miden."
+      </p>
+    </div>
+  </section>
+
+  <!-- MAIN -->
+  <main class="max-w-[1280px] mx-auto px-8 md:px-16 pb-32">
+
+    <!-- ÍNDICE -->
+    <div class="py-16 border-b border-zinc-100">
+      <div class="section-divider mt-0">
+        <span class="h-px w-6 bg-primary"></span>
+        <span class="label text-primary">Índice de Contenidos</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <a href="#acceso" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
+          <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">lock</span>
+          <div>
+            <p class="label text-zinc-400 mb-0.5">01</p>
+            <p class="font-black text-xs text-ink uppercase tracking-tight">Acceso al Sistema</p>
+          </div>
+        </a>
+        <a href="#entry" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
+          <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">edit_note</span>
+          <div>
+            <p class="label text-zinc-400 mb-0.5">02</p>
+            <p class="font-black text-xs text-ink uppercase tracking-tight">Entrada Diaria</p>
+          </div>
+        </a>
+        <a href="#analysis" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
+          <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">analytics</span>
+          <div>
+            <p class="label text-zinc-400 mb-0.5">03</p>
+            <p class="font-black text-xs text-ink uppercase tracking-tight">Análisis Semanal</p>
+          </div>
+        </a>
+        <a href="#budget" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
+          <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">payments</span>
+          <div>
+            <p class="label text-zinc-400 mb-0.5">04</p>
+            <p class="font-black text-xs text-ink uppercase tracking-tight">Estado de Budget</p>
+          </div>
+        </a>
+        <a href="#comparativo" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
+          <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">compare_arrows</span>
+          <div>
+            <p class="label text-zinc-400 mb-0.5">05</p>
+            <p class="font-black text-xs text-ink uppercase tracking-tight">Comparativa Custom</p>
+          </div>
+        </a>
+        <a href="#admin" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
+          <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">admin_panel_settings</span>
+          <div>
+            <p class="label text-zinc-400 mb-0.5">06</p>
+            <p class="font-black text-xs text-ink uppercase tracking-tight">Panel Admin Regional</p>
+          </div>
+        </a>
+        <a href="#metricas" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
+          <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">query_stats</span>
+          <div>
+            <p class="label text-zinc-400 mb-0.5">07</p>
+            <p class="font-black text-xs text-ink uppercase tracking-tight">Guía de KPIs</p>
+          </div>
+        </a>
+        <a href="#elearnings" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
+          <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">school</span>
+          <div>
+            <p class="label text-zinc-400 mb-0.5">08</p>
+            <p class="font-black text-xs text-ink uppercase tracking-tight">E-learnings</p>
+          </div>
+        </a>
+        <a href="#movil" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
+          <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">smartphone</span>
+          <div>
+            <p class="label text-zinc-400 mb-0.5">09</p>
+            <p class="font-black text-xs text-ink uppercase tracking-tight">Acceso Móvil</p>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- 01 ACCESO -->
+    <section id="acceso" class="py-16 border-b border-zinc-100 prose">
+      <div class="section-divider">
+        <span class="h-px w-6 bg-primary"></span>
+        <span class="label text-primary">01 · Acceso al Sistema</span>
+      </div>
+      <h2>Autenticación</h2>
+      <p>La pantalla de inicio es la puerta de entrada al sistema. Selecciona tu tienda del menú desplegable e ingresa tu contraseña de acceso asignada. El sistema reconoce automáticamente tu nivel de permisos y te redirige a la vista correcta.</p>
+
+      <div class="not-prose grid grid-cols-1 md:grid-cols-2 gap-4 my-8">
+        <div class="border-2 border-zinc-900 rounded-2xl p-8">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="material-symbols-outlined text-zinc-700">store</span>
+            <p class="label text-zinc-500">Rol · Store</p>
+          </div>
+          <p class="font-black text-ink text-lg mb-2">Gerente de Tienda</p>
+          <p class="text-zinc-500 text-sm font-medium leading-relaxed">Ingresa directamente a la pantalla de Entrada de su tienda. Solo tiene visibilidad sobre su propia ubicación y sus datos históricos.</p>
+        </div>
+        <div class="border-2 border-primary/30 bg-blue-50/30 rounded-2xl p-8">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="material-symbols-outlined text-primary/60">admin_panel_settings</span>
+            <p class="label text-primary/60">Rol · Admin</p>
+          </div>
+          <p class="font-black text-ink text-lg mb-2">Administrador Regional</p>
+          <p class="text-zinc-500 text-sm font-medium leading-relaxed">Accede al Panel Global Overview con visibilidad total de las 15 tiendas activas en los 7 países de la región.</p>
+        </div>
+      </div>
+
+      <h3>Tiendas de la Región</h3>
+      <p>El sistema cubre 7 países y 15 ubicaciones. Cada código de tienda identifica el país de forma inmediata:</p>
+
+      <div class="not-prose overflow-x-auto my-6">
+        <table class="w-full border-collapse text-sm">
+          <thead>
+            <tr class="bg-[#0D47A1] text-white">
+              <th class="px-6 py-4 text-left label text-blue-200">País</th>
+              <th class="px-6 py-4 text-left label text-blue-200">Bandera</th>
+              <th class="px-6 py-4 text-left label text-blue-200">Códigos de Tienda</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-100">
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Costa Rica</td><td class="px-6 py-4 text-xl">🇨🇷</td><td class="px-6 py-4 text-zinc-600 text-sm">CR01</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Curacao</td><td class="px-6 py-4 text-xl">🇨🇼</td><td class="px-6 py-4 text-zinc-600 text-sm">CW01</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Dominican Republic</td><td class="px-6 py-4 text-xl">🇩🇴</td><td class="px-6 py-4 text-zinc-600 text-sm">DO01, DO02</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">El Salvador</td><td class="px-6 py-4 text-xl">🇸🇻</td><td class="px-6 py-4 text-zinc-600 text-sm">SV01</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Guatemala</td><td class="px-6 py-4 text-xl">🇬🇹</td><td class="px-6 py-4 text-zinc-600 text-sm">GT01</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Panamá</td><td class="px-6 py-4 text-xl">🇵🇦</td><td class="px-6 py-4 text-zinc-600 text-sm">PA01, PA02</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Venezuela</td><td class="px-6 py-4 text-xl">🇻🇪</td><td class="px-6 py-4 text-zinc-600 text-sm">VE01, VE02, VE03, VE04, VE05, VE06, VE100</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="warn">
+        <p><strong>Credenciales inválidas:</strong> Si el sistema rechaza tu contraseña, verifica que el nombre de tu tienda esté seleccionado correctamente. Cada contraseña está vinculada a un código de tienda específico. Contacta a tu Area Manager si el acceso sigue bloqueado. Nunca compartas tu contraseña con otros miembros del equipo.</p>
+      </div>
+    </section>
+
+    <!-- 02 ENTRY -->
+    <section id="entry" class="py-16 border-b border-zinc-100 prose">
+      <div class="section-divider">
+        <span class="h-px w-6 bg-primary"></span>
+        <span class="label text-primary">02 · Entrada Diaria</span>
+      </div>
+      <h2>Captura de Rendimiento Diario</h2>
+      <p>La pantalla de Entrada es el motor del sistema. Cada cifra que ingresas aquí alimenta en tiempo real el dashboard de análisis semanal, las métricas de presupuesto y el reporte enviado al equipo regional.</p>
+
+      <h3>Referencia LY — Contexto Histórico</h3>
+      <p>Antes de escribir un solo número, el sistema ya muestra los <strong>4 indicadores del mismo día del año anterior</strong>. Úsalos como punto de referencia para saber qué esperar del día antes de que empiece.</p>
+
+      <div class="not-prose overflow-x-auto my-6">
+        <table class="w-full border-collapse text-sm">
+          <thead>
+            <tr class="bg-[#0D47A1] text-white">
+              <th class="px-6 py-4 text-left label text-blue-200">Indicador LY</th>
+              <th class="px-6 py-4 text-left label text-blue-200">Para qué sirve</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-100">
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Ventas LY</td><td class="px-6 py-4 text-zinc-600 text-sm">Referencia de ingreso para estimar si el día será positivo o negativo vs año anterior</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Unidades LY</td><td class="px-6 py-4 text-zinc-600 text-sm">Volumen de producto movido ese mismo día hace un año — métrica primaria de LC Waikiki</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Tickets LY</td><td class="px-6 py-4 text-zinc-600 text-sm">Número de transacciones completadas el mismo día del año anterior</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Tráfico LY</td><td class="px-6 py-4 text-zinc-600 text-sm">Visitantes registrados ese día — base para comparar comportamiento del mall</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Debajo de esos cuatro bloques aparece también la <strong>referencia por departamento LY</strong> (BG Women, BU Men, CK Girls, CU Boys, ST Standard), con el porcentaje de variación en tiempo real a medida que vas ingresando los valores del día.</p>
+
+      <h3>Selector de Fecha</h3>
+      <p>Por defecto carga el día de hoy. Puedes navegar a días anteriores para completar o corregir un registro. Si la fecha ya tiene datos guardados, el sistema los carga automáticamente para que los revises o edites.</p>
+
+      <h3>Campos del Formulario</h3>
+      <div class="not-prose overflow-x-auto my-6">
+        <table class="w-full border-collapse text-sm">
+          <thead>
+            <tr class="bg-[#0D47A1] text-white">
+              <th class="px-6 py-4 text-left label text-blue-200">Campo</th>
+              <th class="px-6 py-4 text-left label text-blue-200">Tipo</th>
+              <th class="px-6 py-4 text-left label text-blue-200">Descripción</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-100">
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Ventas Actuales (USD)</td><td class="px-6 py-4 text-zinc-400 text-xs font-bold uppercase">Decimal</td><td class="px-6 py-4 text-zinc-600 text-sm">Venta neta total del día en dólares, post-devoluciones, sin impuestos</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Unidades Vendidas</td><td class="px-6 py-4 text-zinc-400 text-xs font-bold uppercase">Entero</td><td class="px-6 py-4 text-zinc-600 text-sm">Total de artículos vendidos en el día, todas las categorías — KPI principal LCW</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Tickets (Transacciones)</td><td class="px-6 py-4 text-zinc-400 text-xs font-bold uppercase">Entero</td><td class="px-6 py-4 text-zinc-600 text-sm">Número de transacciones de venta completadas (no de artículos)</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Tráfico de Piso</td><td class="px-6 py-4 text-zinc-400 text-xs font-bold uppercase">Entero</td><td class="px-6 py-4 text-zinc-600 text-sm">Visitantes registrados por el contador de puerta durante el día</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Stock ICG (Sistema)</td><td class="px-6 py-4 text-zinc-400 text-xs font-bold uppercase">Entero</td><td class="px-6 py-4 text-zinc-600 text-sm">Stock según el sistema ICG al cierre del día</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Stock RS (Tienda)</td><td class="px-6 py-4 text-zinc-400 text-xs font-bold uppercase">Entero</td><td class="px-6 py-4 text-zinc-600 text-sm">Stock contado físicamente en la tienda (Retail Store) al cierre del día</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="warn">
+        <p><strong>Regla crítica:</strong> Todos los valores de ventas deben ser <strong>netos</strong> (post-devoluciones). Nunca ingreses ventas brutas. Un error aquí distorsiona los KPIs de la semana y las comparativas contra presupuesto.</p>
+      </div>
+
+      <h3>Dual Stock — ICG vs RS</h3>
+      <p>LC Waikiki registra <strong>dos fuentes de stock</strong> diariamente. Esta dualidad es clave para detectar discrepancias entre el inventario del sistema y el físico real:</p>
+      <ul>
+        <li><strong>Stock ICG</strong> — El número que reporta el sistema de punto de venta. Es el inventario teórico.</li>
+        <li><strong>Stock RS</strong> — El número contado en piso por el equipo. Es el inventario real.</li>
+      </ul>
+      <div class="tip">
+        <p><strong>Brecha ICG vs RS:</strong> Si la diferencia entre ambos supera el 5% del total, existe una desviación de inventario significativa. Reporta inmediatamente a tu Area Manager y gestiona un conteo de ciclo para identificar el origen del gap (merma, error de sistema, producto no registrado).</p>
+      </div>
+
+      <h3>Desglose por Departamento</h3>
+      <p>LC Waikiki maneja <strong>5 departamentos</strong>. Ingresa las ventas netas de cada uno y el validador en tiempo real avisa si la suma cuadra con el total ingresado en Ventas Actuales.</p>
+
+      <div class="not-prose grid grid-cols-2 md:grid-cols-5 gap-3 my-6">
+        <div class="border border-blue-200 bg-blue-50/30 rounded-xl px-5 py-4 text-center">
+          <p class="label text-primary mb-1">BG</p>
+          <p class="font-black text-ink text-sm">Women</p>
+        </div>
+        <div class="border border-blue-200 bg-blue-50/30 rounded-xl px-5 py-4 text-center">
+          <p class="label text-primary mb-1">BU</p>
+          <p class="font-black text-ink text-sm">Men</p>
+        </div>
+        <div class="border border-blue-200 bg-blue-50/30 rounded-xl px-5 py-4 text-center">
+          <p class="label text-primary mb-1">CK</p>
+          <p class="font-black text-ink text-sm">Girls</p>
+        </div>
+        <div class="border border-blue-200 bg-blue-50/30 rounded-xl px-5 py-4 text-center">
+          <p class="label text-primary mb-1">CU</p>
+          <p class="font-black text-ink text-sm">Boys</p>
+        </div>
+        <div class="border border-blue-200 bg-blue-50/30 rounded-xl px-5 py-4 text-center">
+          <p class="label text-primary mb-1">ST</p>
+          <p class="font-black text-ink text-sm">Standard</p>
+        </div>
+      </div>
+
+      <ul>
+        <li><strong>Balance correcto:</strong> La barra de progreso llega al 100% y el badge muestra confirmación. La suma BG + BU + CK + CU + ST iguala las Ventas Actuales.</li>
+        <li><strong>Diferencia detectada:</strong> Aparece <code>Dif: $X.XX</code>. Ajusta los valores antes de enviar para mantener la integridad del análisis departamental.</li>
+      </ul>
+
+      <div class="warn">
+        <p><strong>Importante:</strong> BG + BU + CK + CU + ST debe sumar exactamente las Ventas Actuales del día. Una diferencia persistente indica un error de captura que afecta el análisis de mix por departamento que se reporta al equipo regional.</p>
+      </div>
+
+      <h3>Meta del Día — Panel Lateral</h3>
+      <p>El panel superior lateral muestra la meta diaria calculada automáticamente usando el presupuesto mensual ponderado por el peso del día de la semana <em>(Fair Share)</em>. La barra de progreso y el badge de cumplimiento se actualizan en tiempo real.</p>
+
+      <div class="not-prose grid grid-cols-3 gap-3 my-6">
+        <div class="bg-blue-50 border border-blue-200 p-5 rounded-2xl text-center">
+          <p class="label text-blue-400 mb-2">Azul</p>
+          <p class="font-black text-blue-700 text-sm">Por debajo del 85%</p>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 p-5 rounded-2xl text-center">
+          <p class="label text-amber-500 mb-2">Naranja</p>
+          <p class="font-black text-amber-700 text-sm">Entre 85% y 99%</p>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-200 p-5 rounded-2xl text-center">
+          <p class="label text-emerald-600 mb-2">Verde</p>
+          <p class="font-black text-emerald-800 text-sm">100% o superior</p>
+        </div>
+      </div>
+
+      <h3>Foto de Soporte / Auditoría</h3>
+      <p>El sistema permite adjuntar imágenes de respaldo al registro del día. Puedes subir capturas de pantalla del sistema de caja, fotos del piso de ventas o cualquier evidencia de auditoría relevante.</p>
+
+      <div class="tip">
+        <p><strong>Buena práctica:</strong> Sube una captura del cierre de caja o del reporte ICG cada vez que envíes datos. Esto facilita la trazabilidad y reduce las consultas de auditoría desde HQ.</p>
+      </div>
+
+      <h3>Envío de Datos y Correo</h3>
+      <div class="not-prose grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+        <div class="border-2 border-zinc-900 rounded-2xl p-8">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="material-symbols-outlined text-zinc-700">send</span>
+            <p class="label text-zinc-500">Enviar Datos</p>
+          </div>
+          <p class="text-zinc-600 text-sm font-medium leading-relaxed">Guarda los registros en la base de datos del sistema. Si necesitas corregir valores el mismo día, simplemente vuelve a enviar — el sistema sobrescribe el registro anterior automáticamente.</p>
+        </div>
+        <div class="border-2 border-primary/30 rounded-2xl p-8">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="material-symbols-outlined text-primary/60">mail</span>
+            <p class="label text-primary/60">Enviar Correo</p>
+          </div>
+          <p class="text-zinc-600 text-sm font-medium leading-relaxed">Genera y despacha el <strong>Daily Report</strong> al equipo regional. Incluye ventas netas, KPIs del día, comparativa vs LY, estado de meta, desglose por departamento y gráfico de participación por dept.</p>
+        </div>
+      </div>
+
+      <div class="tip">
+        <p><strong>Orden correcto:</strong> Siempre presiona <strong>Enviar Datos</strong> primero y <strong>Enviar Correo</strong> después. El reporte toma los valores en pantalla al momento de ejecutarse — si envías el correo antes de guardar, los datos pueden estar incompletos.</p>
+      </div>
+    </section>
+
+    <!-- 03 ANALYSIS -->
+    <section id="analysis" class="py-16 border-b border-zinc-100 prose">
+      <div class="section-divider">
+        <span class="h-px w-6 bg-primary"></span>
+        <span class="label text-primary">03 · Análisis Semanal</span>
+      </div>
+      <h2>Performance Dashboard</h2>
+      <p>Tu herramienta central de revisión semanal. Muestra el desempeño acumulado de la semana en todos los KPIs clave, la comparativa TY vs LY, y da acceso al motor de inteligencia artificial para análisis estratégico.</p>
+
+      <h3>Selector de Período</h3>
+      <p>El menú desplegable te permite elegir cualquier semana del año. La semana actual se muestra en modo <strong>WTD (Week To Date)</strong> — solo acumula los días transcurridos hasta hoy para una comparación justa con LY. Las semanas pasadas muestran los 7 días completos.</p>
+
+      <h3>Tarjetas de KPIs Principales</h3>
+      <div class="not-prose overflow-x-auto my-6">
+        <table class="w-full border-collapse text-sm">
+          <thead>
+            <tr class="bg-[#0D47A1] text-white">
+              <th class="px-6 py-4 text-left label text-blue-200">Tarjeta</th>
+              <th class="px-6 py-4 text-left label text-blue-200">Qué muestra</th>
+              <th class="px-6 py-4 text-left label text-blue-200">Cómo leerla</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-100">
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Unidades</td><td class="px-6 py-4 text-zinc-600 text-sm">Artículos vendidos en la semana — métrica de ranking primaria LCW</td><td class="px-6 py-4 text-zinc-600 text-sm">Comparado contra mismo periodo del año anterior</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Ventas USD</td><td class="px-6 py-4 text-zinc-600 text-sm">Venta neta acumulada de la semana</td><td class="px-6 py-4 text-zinc-600 text-sm">Valor TY + % comp vs LY + valor LY de referencia</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Tickets</td><td class="px-6 py-4 text-zinc-600 text-sm">Transacciones completadas</td><td class="px-6 py-4 text-zinc-600 text-sm">Indica frecuencia de compra; base para calcular UPT y APT</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Tráfico</td><td class="px-6 py-4 text-zinc-600 text-sm">Visitantes totales registrados</td><td class="px-6 py-4 text-zinc-600 text-sm">Base para calcular la tasa de conversión real</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>KPIs de Eficiencia</h3>
+      <p>Debajo de las tarjetas principales aparecen tres indicadores de eficiencia que revelan la calidad de la operación, independiente del volumen de tráfico:</p>
+      <ul>
+        <li><strong>UPT</strong> — Unidades por Transacción. Mide el add-on selling del equipo.</li>
+        <li><strong>APT</strong> — Promedio por Ticket. Mide el valor económico de cada transacción.</li>
+        <li><strong>Conversión</strong> — Porcentaje de visitantes que compran. El indicador más directo de la ejecución en piso.</li>
+      </ul>
+      <p>Cada uno muestra su variación porcentual contra el mismo periodo de LY.</p>
+
+      <h3>Retail AI Strategist — Powered by GPT-4o Mini</h3>
+      <p>El módulo de inteligencia artificial procesa tus KPIs semanales y genera un diagnóstico operacional con acciones concretas. Para sacarle el máximo provecho, sigue este proceso en orden:</p>
+
+      <div class="not-prose border-2 border-zinc-900 rounded-2xl p-8 my-6">
+        <p class="label text-zinc-500 mb-6">Proceso correcto de uso</p>
+        <div class="space-y-5">
+          <div class="flex items-start gap-4">
+            <div class="step-num">1</div>
+            <p class="text-zinc-600 text-sm font-medium leading-relaxed">Completa el campo <strong class="text-ink">Diagnóstico de Operación</strong> con el contexto real de la semana: clima, eventos en el mall, reducción de equipo, remodelaciones, cierres inesperados, lanzamientos de campaña, etc.</p>
+          </div>
+          <div class="flex items-start gap-4">
+            <div class="step-num">2</div>
+            <p class="text-zinc-600 text-sm font-medium leading-relaxed">Presiona <strong class="text-ink">"Generar Estrategia"</strong> y espera el análisis automático. El sistema procesa tus KPIs junto con el contexto ingresado.</p>
+          </div>
+          <div class="flex items-start gap-4">
+            <div class="step-num">3</div>
+            <p class="text-zinc-600 text-sm font-medium leading-relaxed">La IA entrega un diagnóstico operativo, identifica el principal riesgo si no se actúa, y propone acciones ejecutables concretas para la siguiente semana.</p>
+          </div>
+          <div class="flex items-start gap-4">
+            <div class="step-num">4</div>
+            <p class="text-zinc-600 text-sm font-medium leading-relaxed">Escribe tu plan en <strong class="text-ink">Compromisos de Mejora</strong> y presiona <strong class="text-ink">"Guardar Análisis"</strong> para que el equipo regional registre tu plan de acción semanal.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="warn">
+        <p><strong>La IA no adivina contexto.</strong> Un campo de diagnóstico vacío o genérico genera recomendaciones genéricas. Cuanto más específico seas sobre las condiciones de la semana, más accionables serán las estrategias propuestas.</p>
+      </div>
+
+      <div class="tip">
+        <p><strong>Ejemplo de buen diagnóstico:</strong> <em>"Lunes festivo con cierre 3 horas antes. Martes a jueves con lluvia intensa. El mall reportó 40% menos tráfico peatonal. Equipo completo excepto jueves sin encargado de fitting."</em></p>
+      </div>
+    </section>
+
+    <!-- 04 BUDGET -->
+    <section id="budget" class="py-16 border-b border-zinc-100 prose">
+      <div class="section-divider">
+        <span class="h-px w-6 bg-primary"></span>
+        <span class="label text-primary">04 · Estado de Budget</span>
+      </div>
+      <h2>Presupuesto MTD &amp; YTD</h2>
+      <p>La pantalla de Budget te da visibilidad inmediata sobre el cumplimiento del presupuesto de ventas en dos horizontes: el mes en curso y el año en curso. Úsala como check-in rápido para saber exactamente dónde estás respecto a la meta.</p>
+
+      <div class="not-prose overflow-x-auto my-8">
+        <table class="w-full border-collapse text-sm">
+          <thead>
+            <tr class="bg-[#0D47A1] text-white">
+              <th class="px-6 py-4 text-left label text-blue-200">Indicador</th>
+              <th class="px-6 py-4 text-left label text-blue-200">Qué mide</th>
+              <th class="px-6 py-4 text-left label text-blue-200">Cómo leerlo</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-100">
+            <tr class="bg-white hover:bg-blue-50">
+              <td class="px-6 py-4 font-black text-ink text-xs uppercase">MTD — Month To Date</td>
+              <td class="px-6 py-4 text-zinc-600 text-sm">Venta acumulada del mes actual vs meta mensual</td>
+              <td class="px-6 py-4 text-zinc-600 text-sm">Porcentaje de cumplimiento sobre el presupuesto del mes</td>
+            </tr>
+            <tr class="bg-white hover:bg-blue-50">
+              <td class="px-6 py-4 font-black text-ink text-xs uppercase">YTD — Year To Date</td>
+              <td class="px-6 py-4 text-zinc-600 text-sm">Venta acumulada del año vs meta anual</td>
+              <td class="px-6 py-4 text-zinc-600 text-sm">Trayectoria anual — indica si el ritmo actual alcanza la meta de fin de año</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="tip">
+        <p><strong>Consejo clave:</strong> Un MTD fuerte en un mes no compensa meses anteriores de YTD débil. Revisa ambos indicadores cada semana. Si tu YTD está más del 10% por debajo de la trayectoria esperada, construye un plan de recuperación antes de que el gap sea insalvable.</p>
+      </div>
+
+      <h3>Lógica Fair Share — Meta Diaria</h3>
+      <p>La meta diaria visible en la pantalla de Entrada no es simplemente el presupuesto mensual dividido entre los días del mes. El sistema aplica un peso por día de semana <em>(Fair Share)</em>: los sábados y domingos tienen mayor ponderación porque históricamente generan más tráfico. Un lunes equivale a menos presupuesto que un sábado, reflejando la realidad del comportamiento del consumidor en los mercados donde opera LC Waikiki.</p>
+    </section>
+
+    <!-- 05 COMPARATIVO -->
+    <section id="comparativo" class="py-16 border-b border-zinc-100 prose">
+      <div class="section-divider">
+        <span class="h-px w-6 bg-primary"></span>
+        <span class="label text-primary">05 · Comparativa Personalizada</span>
+      </div>
+      <h2>Análisis de Rangos Libres</h2>
+      <p>La Comparativa Custom te permite contrastar cualquier rango de fechas de este año (TY) contra el mismo período del año anterior (LY). Ideal para analizar el impacto de campañas, evaluar temporadas o diagnosticar semanas específicas de bajo rendimiento.</p>
+
+      <h3>Configuración de Rangos</h3>
+      <div class="not-prose overflow-x-auto my-6">
+        <table class="w-full border-collapse text-sm">
+          <thead>
+            <tr class="bg-[#0D47A1] text-white">
+              <th class="px-6 py-4 text-left label text-blue-200">Campo</th>
+              <th class="px-6 py-4 text-left label text-blue-200">Descripción</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-100">
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Rango Este Año (TY) — Inicio / Fin</td><td class="px-6 py-4 text-zinc-600 text-sm">Define el período del año actual que quieres analizar</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Rango Comparativo (LY) — Inicio / Fin</td><td class="px-6 py-4 text-zinc-600 text-sm">Se calcula automáticamente 364 días antes del rango TY. Ajustable manualmente para comparar contra otro rango del mismo año o año anterior.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Resultados y Orden del Ranking</h3>
+      <p>Al presionar <strong>"Calcular Comparativa"</strong> el sistema muestra los KPIs del período ordenados <strong>por Unidades</strong> de mayor a menor. Las Ventas USD actúan como criterio de desempate. Este criterio es consistente con la filosofía de LC Waikiki: el volumen de producto movido es el indicador primario de rendimiento.</p>
+
+      <div class="not-prose flex flex-wrap gap-4 my-6">
+        <div class="flex items-center gap-3 border border-blue-200 bg-blue-50/30 px-6 py-4 rounded-2xl">
+          <span class="font-black text-ink text-sm">1,240 unidades</span>
+          <span class="text-emerald-600 font-black text-sm">+ 12.4%</span>
+          <span class="label text-zinc-400">Positivo vs LY</span>
+        </div>
+        <div class="flex items-center gap-3 border border-zinc-200 px-6 py-4 rounded-2xl">
+          <span class="font-black text-ink text-sm">890 unidades</span>
+          <span class="text-red-500 font-black text-sm">— 8.7%</span>
+          <span class="label text-zinc-400">Negativo vs LY</span>
+        </div>
+      </div>
+
+      <h3>Desglose por Departamento</h3>
+      <p>Debajo de la tabla principal, aparece el desglose por los 5 departamentos (BG Women, BU Men, CK Girls, CU Boys, ST Standard) con venta TY, venta LY y comp % para cada uno.</p>
+
+      <h3>Vista Multi-tienda (Solo Admin)</h3>
+      <p>Los usuarios con acceso Admin pueden seleccionar una o varias tiendas simultáneamente, con la opción de filtrar por país usando el selector de enfoque. Hay un botón de "Seleccionar Todas" para análisis regionales rápidos.</p>
+
+      <div class="tip">
+        <p><strong>Uso estratégico:</strong> Si un departamento infantil (CK Girls o CU Boys) muestra comp positivo y los adultos negativo en el mismo período, evalúa si la asignación de espacio en piso refleja ese potencial de crecimiento.</p>
+      </div>
+    </section>
+
+    <!-- 06 ADMIN -->
+    <section id="admin" class="py-16 border-b border-zinc-100 prose">
+      <div class="section-divider">
+        <span class="h-px w-6 bg-primary"></span>
+        <span class="label text-primary">06 · Panel Admin Regional</span>
+      </div>
+      <h2>Global Overview</h2>
+      <p>El panel de administración está disponible exclusivamente para usuarios con rol Admin. Ofrece una vista consolidada de toda la región para la semana seleccionada, con herramientas de comparación entre tiendas y filtros por país.</p>
+
+      <h3>Filtro por País</h3>
+      <p>El menú <strong>"Enfoque de País"</strong> permite filtrar el ranking para ver únicamente las tiendas de un país específico. Esto es especialmente útil en Venezuela, donde hay 7 tiendas. Las opciones disponibles son:</p>
+      <ul>
+        <li><strong>Regional</strong> — Vista consolidada de las 15 tiendas</li>
+        <li><strong>Por país</strong> — Costa Rica, Curacao, Dominican Republic, El Salvador, Guatemala, Panamá, Venezuela</li>
+      </ul>
+
+      <h3>Ranking por Performance — Ordenado por Unidades</h3>
+      <p>La tabla principal muestra todas las tiendas activas <strong>ordenadas por Unidades vendidas</strong> (criterio primario LC Waikiki), usando Venta USD como criterio de desempate. Para cada tienda se muestran:</p>
+      <ul>
+        <li><strong>Unidades</strong> — Artículos vendidos en el período — criterio de ranking principal</li>
+        <li><strong>Ventas USD</strong> — Venta neta total de la semana</li>
+        <li><strong>UPT</strong> — Unidades por transacción de cada tienda</li>
+        <li><strong>APT</strong> — Promedio de venta por ticket</li>
+        <li><strong>AUR</strong> — Average Unit Retail (precio promedio por artículo vendido)</li>
+        <li><strong>Conversión</strong> — Tasa de conversión tráfico a compra</li>
+      </ul>
+
+      <div class="not-prose overflow-x-auto my-6">
+        <table class="w-full border-collapse text-sm">
+          <thead>
+            <tr class="bg-[#0D47A1] text-white">
+              <th class="px-6 py-4 text-left label text-blue-200">Métrica de Admin</th>
+              <th class="px-6 py-4 text-left label text-blue-200">Qué muestra</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-100">
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Unidades Total Región</td><td class="px-6 py-4 text-zinc-600 text-sm">Suma de unidades vendidas de todas las tiendas activas en la semana seleccionada</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Top Performer</td><td class="px-6 py-4 text-zinc-600 text-sm">Tienda con mayor cantidad de unidades vendidas en la semana</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Media UPT Regional</td><td class="px-6 py-4 text-zinc-600 text-sm">Promedio de Unidades por Transacción de todas las tiendas en el período</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="tip">
+        <p><strong>Para Area Managers:</strong> Usa el ranking para identificar las tiendas con mayor oportunidad en UPT antes de las visitas de coaching. En LC Waikiki, una tienda con Unidades altas pero APT bajo está moviendo volumen con producto de bajo precio — revisa el mix por departamento (ST Standard puede estar dominando sobre BG Women o BU Men).</p>
+      </div>
+
+      <h3>Reporte Semanal Automático</h3>
+      <p>Cada semana el sistema genera y envía automáticamente un <strong>Weekly Operations Report</strong> a los correos configurados con rol Admin. El reporte incluye el ranking completo ordenado por Unidades, el mix departamental global (BG/BU/CK/CU/ST) y el estado de Budget MTD por tienda.</p>
+    </section>
+
+    <!-- 07 MÉTRICAS -->
+    <section id="metricas" class="py-16 border-b border-zinc-100 prose">
+      <div class="section-divider">
+        <span class="h-px w-6 bg-primary"></span>
+        <span class="label text-primary">07 · Guía de KPIs</span>
+      </div>
+      <h2>KPIs Operacionales</h2>
+
+      <!-- UPT -->
+      <div class="not-prose border border-zinc-200 rounded-2xl overflow-hidden my-8">
+        <div class="bg-[#0D47A1] px-8 py-6">
+          <p style="color:#ffffff;font-weight:900;font-size:1.25rem;letter-spacing:-0.01em;margin:0">UPT</p>
+          <p class="label" style="color:#90caf9;margin-top:4px">Unidades por Transacción · Fórmula: Unidades ÷ Tickets</p>
+        </div>
+        <div class="p-8">
+          <p class="text-zinc-600 text-sm font-medium leading-relaxed mb-6">Mide cuántos artículos lleva en promedio cada cliente que compra. Es el indicador más directo de la efectividad del add-on selling de tu equipo. En LC Waikiki, donde el volumen de Unidades es el KPI principal, el UPT tiene un peso estratégico alto.</p>
+          <table class="w-full text-sm border-collapse">
+            <thead><tr class="border-b border-zinc-100"><th class="py-3 text-left label text-zinc-400">Rango</th><th class="py-3 text-left label text-zinc-400">Interpretación</th></tr></thead>
+            <tbody class="divide-y divide-zinc-50">
+              <tr><td class="py-3 font-black text-red-500 text-sm">Menos de 1.5</td><td class="py-3 text-zinc-600 text-sm">Crítico — Los clientes compran artículos sueltos. El equipo no está aprovechando las colecciones familia.</td></tr>
+              <tr><td class="py-3 font-black text-amber-500 text-sm">1.5 a 2.2</td><td class="py-3 text-zinc-600 text-sm">Aceptable — Hay oportunidad clara de add-on selling, especialmente en niños (CK/CU) donde el cliente compra por ocasión.</td></tr>
+              <tr><td class="py-3 font-black text-emerald-600 text-sm">2.2 a 3.5</td><td class="py-3 text-zinc-600 text-sm">Bueno — El equipo ejecuta múltiples ventas por cliente con consistencia.</td></tr>
+              <tr><td class="py-3 font-black text-ink text-sm">Más de 3.5</td><td class="py-3 text-zinc-600 text-sm">Excelente — Alto nivel de outfit selling. El equipo trabaja colecciones completas.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- APT -->
+      <div class="not-prose border border-zinc-200 rounded-2xl overflow-hidden my-8">
+        <div class="bg-[#0D47A1] px-8 py-6">
+          <p style="color:#ffffff;font-weight:900;font-size:1.25rem;letter-spacing:-0.01em;margin:0">APT</p>
+          <p class="label" style="color:#90caf9;margin-top:4px">Average Per Transaction · Fórmula: Ventas Netas ÷ Tickets</p>
+        </div>
+        <div class="p-8">
+          <p class="text-zinc-600 text-sm font-medium leading-relaxed mb-6">Mide el valor económico promedio de cada transacción. Cruzado con UPT revela si el equipo está vendiendo volumen o valor, y dónde está la verdadera oportunidad de mejora.</p>
+          <table class="w-full text-sm border-collapse">
+            <thead><tr class="border-b border-zinc-100"><th class="py-3 text-left label text-zinc-400">Escenario</th><th class="py-3 text-left label text-zinc-400">Causa probable</th><th class="py-3 text-left label text-zinc-400">Acción</th></tr></thead>
+            <tbody class="divide-y divide-zinc-50">
+              <tr><td class="py-3 text-zinc-700 text-sm font-bold">APT bajo + UPT alto</td><td class="py-3 text-zinc-500 text-sm">Muchas unidades de bajo precio (básicos ST)</td><td class="py-3 text-zinc-500 text-sm">Foco en colecciones premium BG Women o BU Men</td></tr>
+              <tr><td class="py-3 text-zinc-700 text-sm font-bold">APT bajo + UPT bajo</td><td class="py-3 text-zinc-500 text-sm">Ventas de básicos mínimas</td><td class="py-3 text-zinc-500 text-sm">Trabajar la presentación de producto hero en entrada</td></tr>
+              <tr><td class="py-3 text-zinc-700 text-sm font-bold">APT alto + Conv. baja</td><td class="py-3 text-zinc-500 text-sm">Pocos clientes pero que gastan bien</td><td class="py-3 text-zinc-500 text-sm">Mejorar la bienvenida y el primer contacto en piso</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- AUR -->
+      <div class="not-prose border border-zinc-200 rounded-2xl overflow-hidden my-8">
+        <div class="bg-[#0D47A1] px-8 py-6">
+          <p style="color:#ffffff;font-weight:900;font-size:1.25rem;letter-spacing:-0.01em;margin:0">AUR</p>
+          <p class="label" style="color:#90caf9;margin-top:4px">Average Unit Retail · Fórmula: Ventas Netas ÷ Unidades</p>
+        </div>
+        <div class="p-8">
+          <p class="text-zinc-600 text-sm font-medium leading-relaxed mb-6">Mide el precio promedio de cada artículo vendido. Es el indicador de calidad del mix de venta por categoría. En LC Waikiki, donde el modelo de negocio premia el volumen, el AUR permite detectar si se está priorizando producto de bajo valor o si las colecciones premium están siendo bien presentadas.</p>
+          <table class="w-full text-sm border-collapse">
+            <thead><tr class="border-b border-zinc-100"><th class="py-3 text-left label text-zinc-400">Señal</th><th class="py-3 text-left label text-zinc-400">Qué indica</th></tr></thead>
+            <tbody class="divide-y divide-zinc-50">
+              <tr><td class="py-3 font-black text-emerald-600 text-sm">AUR sube vs LY</td><td class="py-3 text-zinc-600 text-sm">El equipo está moviendo colecciones de mayor valor (BG Women, BU Men) sobre básicos ST</td></tr>
+              <tr><td class="py-3 font-black text-amber-500 text-sm">AUR estable vs LY</td><td class="py-3 text-zinc-600 text-sm">Mix de venta consistente con el año anterior</td></tr>
+              <tr><td class="py-3 font-black text-red-500 text-sm">AUR baja vs LY</td><td class="py-3 text-zinc-600 text-sm">Posible exceso de promociones, ST dominando el mix, o clientes eligiendo artículos de menor precio</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CONVERSIÓN -->
+      <div class="not-prose border border-zinc-200 rounded-2xl overflow-hidden my-8">
+        <div class="bg-[#0D47A1] px-8 py-6">
+          <p style="color:#ffffff;font-weight:900;font-size:1.25rem;letter-spacing:-0.01em;margin:0">Conversión</p>
+          <p class="label" style="color:#90caf9;margin-top:4px">Tasa de Compra · Fórmula: (Tickets ÷ Tráfico) × 100</p>
+        </div>
+        <div class="p-8">
+          <p class="text-zinc-600 text-sm font-medium leading-relaxed mb-6">El indicador más honesto de la ejecución de tu equipo en piso. De cada 100 personas que entran a la tienda, cuántas terminan comprando. La conversión depende directamente del equipo, no del mall.</p>
+          <table class="w-full text-sm border-collapse">
+            <thead><tr class="border-b border-zinc-100"><th class="py-3 text-left label text-zinc-400">Rango</th><th class="py-3 text-left label text-zinc-400">Benchmark retail moda internacional</th></tr></thead>
+            <tbody class="divide-y divide-zinc-50">
+              <tr><td class="py-3 font-black text-red-500 text-sm">Menos del 15%</td><td class="py-3 text-zinc-600 text-sm">Por debajo del estándar — El equipo no está convirtiendo la visita en compra</td></tr>
+              <tr><td class="py-3 font-black text-amber-500 text-sm">15% a 25%</td><td class="py-3 text-zinc-600 text-sm">Rango estándar de la industria de moda</td></tr>
+              <tr><td class="py-3 font-black text-emerald-600 text-sm">25% a 35%</td><td class="py-3 text-zinc-600 text-sm">Alto rendimiento operacional</td></tr>
+              <tr><td class="py-3 font-black text-ink text-sm">Más del 35%</td><td class="py-3 text-zinc-600 text-sm">Excelencia — El equipo convierte casi uno de cada tres visitantes</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3 class="mt-16">Diagnóstico Rápido por Síntoma</h3>
+      <div class="not-prose space-y-4 mt-6">
+        <div class="tip">
+          <p><strong>Conversión baja con tráfico alto —</strong> El problema está en el piso, no en el mall. Revisa si el equipo está en posición de atención, si los maniquíes del frente reflejan producto disponible en talla, y si hay cuellos de botella en fitting rooms o en caja.</p>
+        </div>
+        <div class="tip">
+          <p><strong>UPT por debajo de 1.5 —</strong> Implementa un "Look Completo del Día" visible desde la entrada. Capacita al equipo en la pregunta de cierre: <em>"¿Encontraste todo lo que necesitabas para completar el outfit?"</em> antes de procesar cada transacción.</p>
+        </div>
+        <div class="tip">
+          <p><strong>AUR en caída sostenida vs LY —</strong> Revisa qué departamento está generando la mayor cantidad de unidades. Si ST Standard domina el mix con participación superior al 40%, el equipo puede estar guiando al cliente hacia básicos de bajo precio en lugar de las colecciones BG o BU.</p>
+        </div>
+        <div class="tip">
+          <p><strong>Brecha Stock ICG vs RS superior al 5% —</strong> Existe una discrepancia de inventario significativa. Realiza un conteo de ciclo urgente en las categorías con mayor rotación (típicamente CK Girls y CU Boys en tiendas con familia como cliente principal).</p>
+        </div>
+        <div class="tip">
+          <p><strong>APT sube pero Tickets bajan —</strong> Los clientes que compran gastan más, pero estás perdiendo volumen de compradores. Revisa el primer momento de contacto: el saludo y la atención en los primeros 30 segundos de la visita son críticos para convertir un visitante en comprador.</p>
+        </div>
+        <div class="tip">
+          <p><strong>Unidades negativas vs LY con Ventas positivas —</strong> Estás vendiendo menos artículos pero a mayor precio. Verifica si hay escasez de producto en tallas clave o si el equipo está priorizando artículos de precio alto sobre el volumen. En LC Waikiki, ambas métricas deben crecer juntas.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 E-LEARNINGS -->
+    <section id="elearnings" class="py-16 border-b border-zinc-100 prose">
+      <div class="section-divider">
+        <span class="h-px w-6 bg-primary"></span>
+        <span class="label text-primary">08 · E-learnings</span>
+      </div>
+      <h2>Seguimiento de Capacitación</h2>
+      <p>El panel de E-learnings centraliza el control de las actividades de formación pendientes en todas las tiendas de la región. Conectado a la plataforma Enocta, actualiza automáticamente cada lunes con el reporte semanal de cursos, eliminando la necesidad de revisar archivos Excel de forma manual.</p>
+
+      <h3>Tarjetas de Resumen</h3>
+      <p>Al abrir el panel, lo primero que aparece es un bloque de tarjetas con los totales de actividades pendientes. Los usuarios Admin ven una tarjeta por país más una tarjeta global; los Gerentes de Tienda ven únicamente su resumen.</p>
+
+      <div class="not-prose overflow-x-auto my-6">
+        <table class="w-full border-collapse text-sm">
+          <thead>
+            <tr class="bg-[#0D47A1] text-white">
+              <th class="px-6 py-4 text-left label text-blue-200">Tarjeta</th>
+              <th class="px-6 py-4 text-left label text-blue-200">Visible para</th>
+              <th class="px-6 py-4 text-left label text-blue-200">Qué muestra</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-100">
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Por País</td><td class="px-6 py-4 text-zinc-600 text-sm">Admin</td><td class="px-6 py-4 text-zinc-600 text-sm">Total pendientes, In Progress y Not Started de cada país</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Total Regional</td><td class="px-6 py-4 text-zinc-600 text-sm">Admin</td><td class="px-6 py-4 text-zinc-600 text-sm">Suma de todas las actividades pendientes en la región con desglose IP/NS</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Mi Tienda</td><td class="px-6 py-4 text-zinc-600 text-sm">Gerente de Tienda</td><td class="px-6 py-4 text-zinc-600 text-sm">Actividades pendientes de los colaboradores de su tienda únicamente</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Tabla de Actividades Pendientes</h3>
+      <p>La tabla principal muestra las actividades con status <strong>In Progress</strong> o <strong>Not Started</strong>. Cada fila corresponde a un colaborador y un curso específico.</p>
+
+      <div class="not-prose overflow-x-auto my-6">
+        <table class="w-full border-collapse text-sm">
+          <thead>
+            <tr class="bg-[#0D47A1] text-white">
+              <th class="px-6 py-4 text-left label text-blue-200">Columna</th>
+              <th class="px-6 py-4 text-left label text-blue-200">Descripción</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-100">
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">✓</td><td class="px-6 py-4 text-zinc-600 text-sm">Botón para marcar la actividad como completada (ver sección siguiente)</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">País</td><td class="px-6 py-4 text-zinc-600 text-sm">País de la tienda del colaborador</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Tienda</td><td class="px-6 py-4 text-zinc-600 text-sm">Código de tienda (ej. VE06, PA01)</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Store/Dept</td><td class="px-6 py-4 text-zinc-600 text-sm">Departamento o área de la tienda según Enocta</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Actividad</td><td class="px-6 py-4 text-zinc-600 text-sm">Nombre del curso o módulo de formación pendiente</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Status</td><td class="px-6 py-4 text-zinc-600 text-sm"><strong>In Progress</strong> — el colaborador empezó pero no terminó · <strong>Not Started</strong> — el curso no ha sido iniciado</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Usuario</td><td class="px-6 py-4 text-zinc-600 text-sm">Código de identificación del colaborador en Enocta</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">Cargo</td><td class="px-6 py-4 text-zinc-600 text-sm">Posición del colaborador según el sistema de formación</td></tr>
+            <tr class="bg-white hover:bg-blue-50"><td class="px-6 py-4 font-black text-ink text-xs uppercase">F. Registro</td><td class="px-6 py-4 text-zinc-600 text-sm">Fecha en que el colaborador fue asignado a la actividad</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Marcar una Actividad como Completada</h3>
+      <p>El botón <strong>✓</strong> al inicio de cada fila permite registrar manualmente la compleción de una actividad cuando el colaborador terminó el curso pero la plataforma Enocta aún no actualizó su estado.</p>
+
+      <div class="not-prose border-2 border-zinc-900 rounded-2xl p-8 my-6">
+        <p class="label text-zinc-500 mb-6">Cómo marcar como completada</p>
+        <div class="space-y-5">
+          <div class="flex items-start gap-4">
+            <div class="step-num">1</div>
+            <p class="text-zinc-600 text-sm font-medium leading-relaxed">Localiza la fila del colaborador y la actividad correspondiente usando los filtros o la búsqueda de texto.</p>
+          </div>
+          <div class="flex items-start gap-4">
+            <div class="step-num">2</div>
+            <p class="text-zinc-600 text-sm font-medium leading-relaxed">Haz clic en el botón <strong class="text-ink">✓</strong> en la primera columna de la fila.</p>
+          </div>
+          <div class="flex items-start gap-4">
+            <div class="step-num">3</div>
+            <p class="text-zinc-600 text-sm font-medium leading-relaxed">La fila se anima y desaparece de la tabla — el sistema actualizó el status a <strong class="text-ink">Completed</strong> en la base de datos.</p>
+          </div>
+          <div class="flex items-start gap-4">
+            <div class="bg-zinc-900 step-num">✓</div>
+            <p class="text-sm text-ink font-black leading-relaxed">Los contadores de las tarjetas de resumen se actualizan en la siguiente carga del panel.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="warn">
+        <p><strong>Solo marca lo que está realmente completado.</strong> El próximo lunes el proceso automático sobreescribe los datos con el reporte de Enocta. Si la plataforma no registra el curso como completado, volverá a aparecer la semana siguiente.</p>
+      </div>
+
+      <h3>Filtros y Búsqueda</h3>
+      <p>El panel ofrece varias formas de encontrar actividades específicas rápidamente:</p>
+      <ul>
+        <li><strong>Búsqueda de texto</strong> — filtra en tiempo real sobre nombre de actividad, tienda, cargo y país simultáneamente.</li>
+        <li><strong>Filtro País</strong> — disponible solo para Admin; muestra únicamente las tiendas del país seleccionado.</li>
+        <li><strong>Filtro Tienda</strong> — disponible solo para Admin; filtra por código de tienda específico.</li>
+        <li><strong>Filtro Status</strong> — disponible para todos los roles; permite ver solo In Progress, solo Not Started, o ambos.</li>
+      </ul>
+
+      <div class="tip">
+        <p><strong>Vista de Gerente de Tienda:</strong> Los usuarios con rol Store no ven los filtros de País y Tienda — el panel carga automáticamente solo los registros de su tienda asignada.</p>
+      </div>
+
+      <h3>Exportar a CSV</h3>
+      <p>El botón <strong>"Exportar CSV"</strong> descarga todos los registros visibles en la tabla (con los filtros aplicados) en un archivo de texto separado por comas, listo para abrir en Excel. El archivo incluye BOM UTF-8 para garantizar la correcta visualización de tildes y caracteres especiales.</p>
+
+      <h3>Paginación</h3>
+      <p>La tabla muestra <strong>50 registros por página</strong>. Los botones de navegación en la parte inferior permiten avanzar o retroceder entre páginas. El contador central indica la página actual sobre el total disponible.</p>
+
+      <h3>Fecha del Último Reporte</h3>
+      <p>En la parte superior del panel aparece la fecha del último reporte procesado y el total de actividades pendientes al momento de esa actualización. Usa este dato para confirmar que el panel refleja la información más reciente antes de tomar decisiones de seguimiento con tu equipo.</p>
+
+      <div class="not-prose grid grid-cols-1 md:grid-cols-2 gap-4 my-8">
+        <div class="border-2 border-zinc-900 rounded-2xl p-8">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="material-symbols-outlined text-zinc-700">pending_actions</span>
+            <p class="label text-zinc-500">In Progress</p>
+          </div>
+          <p class="font-black text-ink text-lg mb-2">Curso iniciado, sin terminar</p>
+          <p class="text-zinc-500 text-sm font-medium leading-relaxed">El colaborador abrió el curso en Enocta pero no completó todos los módulos o evaluaciones. Prioridad media — requiere seguimiento para que lo finalice.</p>
+        </div>
+        <div class="border-2 border-red-200 bg-red-50/20 rounded-2xl p-8">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="material-symbols-outlined text-red-400">block</span>
+            <p class="label text-red-400">Not Started</p>
+          </div>
+          <p class="font-black text-ink text-lg mb-2">Curso sin iniciar</p>
+          <p class="text-zinc-500 text-sm font-medium leading-relaxed">El colaborador tiene el curso asignado pero no ha ingresado a la plataforma a realizarlo. Prioridad alta — requiere acción inmediata del gerente de tienda.</p>
+        </div>
+      </div>
+
+      <div class="tip">
+        <p><strong>Recomendación semanal:</strong> Revisa el panel cada martes después de la actualización automática del lunes. Identifica los colaboradores con cursos Not Started y gestiona directamente con ellos el acceso y compleción antes del siguiente corte semanal.</p>
+      </div>
+    </section>
+
+    <!-- 09 MÓVIL -->
+    <section id="movil" class="py-16 prose">
+      <div class="section-divider">
+        <span class="h-px w-6 bg-primary"></span>
+        <span class="label text-primary">09 · Acceso Móvil</span>
+      </div>
+      <h2>Instalar como App</h2>
+      <p>LC Waikiki Retail Pro está optimizado para uso móvil y puede instalarse como una app nativa en tu dispositivo sin necesidad de descarga desde ningún store. Agrégala a la pantalla de inicio para acceso inmediato sin abrir el browser cada vez.</p>
+
+      <div class="not-prose grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        <div class="border border-zinc-200 rounded-2xl overflow-hidden">
+          <div class="bg-[#0D47A1] px-8 py-5 flex items-center gap-4">
+            <span class="material-symbols-outlined" style="color:#90caf9">android</span>
+            <p class="label" style="color:#90caf9">Android — Google Chrome</p>
+          </div>
+          <div class="p-8 space-y-4">
+            <div class="flex items-start gap-4">
+              <div class="step-num mt-0.5">1</div>
+              <p class="text-sm text-zinc-600 font-medium leading-relaxed">Abre <strong>Google Chrome</strong> en tu dispositivo Android</p>
+            </div>
+            <div class="flex items-start gap-4">
+              <div class="step-num mt-0.5">2</div>
+              <p class="text-sm text-zinc-600 font-medium leading-relaxed">Navega a la URL del sistema LC Waikiki Retail Pro</p>
+            </div>
+            <div class="flex items-start gap-4">
+              <div class="step-num mt-0.5">3</div>
+              <p class="text-sm text-zinc-600 font-medium leading-relaxed">Toca el menú de tres puntos en la esquina superior derecha</p>
+            </div>
+            <div class="flex items-start gap-4">
+              <div class="step-num mt-0.5">4</div>
+              <p class="text-sm text-zinc-600 font-medium leading-relaxed">Selecciona <strong>"Agregar a pantalla de inicio"</strong></p>
+            </div>
+            <div class="flex items-start gap-4">
+              <div class="bg-zinc-900 step-num mt-0.5">✓</div>
+              <p class="text-sm text-ink font-black leading-relaxed">Confirma el nombre y toca <strong>"Agregar"</strong></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="border border-zinc-200 rounded-2xl overflow-hidden">
+          <div class="bg-[#0D47A1] px-8 py-5 flex items-center gap-4">
+            <span class="material-symbols-outlined" style="color:#90caf9">phone_iphone</span>
+            <p class="label" style="color:#90caf9">iOS — Safari</p>
+          </div>
+          <div class="p-8 space-y-4">
+            <div class="flex items-start gap-4">
+              <div class="step-num mt-0.5">1</div>
+              <p class="text-sm text-zinc-600 font-medium leading-relaxed">Abre <strong>Safari</strong> — Chrome en iOS no permite agregar a inicio; debes usar Safari obligatoriamente</p>
+            </div>
+            <div class="flex items-start gap-4">
+              <div class="step-num mt-0.5">2</div>
+              <p class="text-sm text-zinc-600 font-medium leading-relaxed">Navega a la URL del sistema LC Waikiki Retail Pro</p>
+            </div>
+            <div class="flex items-start gap-4">
+              <div class="step-num mt-0.5">3</div>
+              <p class="text-sm text-zinc-600 font-medium leading-relaxed">Toca el ícono de <strong>Compartir</strong> en la barra inferior de Safari</p>
+            </div>
+            <div class="flex items-start gap-4">
+              <div class="step-num mt-0.5">4</div>
+              <p class="text-sm text-zinc-600 font-medium leading-relaxed">Selecciona <strong>"Agregar a Inicio"</strong> en el menú desplegable</p>
+            </div>
+            <div class="flex items-start gap-4">
+              <div class="bg-zinc-900 step-num mt-0.5">✓</div>
+              <p class="text-sm text-ink font-black leading-relaxed">Toca <strong>"Agregar"</strong> en la esquina superior derecha</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tip mt-8">
+        <p>Una vez instalada, la app abre directamente en pantalla completa sin barra de navegador, igual a cualquier aplicación nativa. La experiencia en mobile está optimizada con navegación inferior para acceso rápido a todas las pantallas del sistema.</p>
+      </div>
+
+      <div class="not-prose mt-8 border border-blue-200 bg-blue-50/30 rounded-2xl p-8">
+        <p class="label text-primary mb-4">Navegación móvil disponible</p>
+        <div class="flex flex-wrap gap-3">
+          <span class="flex items-center gap-2 bg-white border border-blue-100 px-4 py-2 rounded-full text-[10px] font-black uppercase text-zinc-600">
+            <span class="material-symbols-outlined text-sm text-primary">edit_note</span>Entrada
+          </span>
+          <span class="flex items-center gap-2 bg-white border border-blue-100 px-4 py-2 rounded-full text-[10px] font-black uppercase text-zinc-600">
+            <span class="material-symbols-outlined text-sm text-primary">payments</span>Budget
+          </span>
+          <span class="flex items-center gap-2 bg-white border border-blue-100 px-4 py-2 rounded-full text-[10px] font-black uppercase text-zinc-600">
+            <span class="material-symbols-outlined text-sm text-primary">analytics</span>Análisis
+          </span>
+          <span class="flex items-center gap-2 bg-white border border-blue-100 px-4 py-2 rounded-full text-[10px] font-black uppercase text-zinc-600">
+            <span class="material-symbols-outlined text-sm text-primary">compare_arrows</span>Comparativa
+          </span>
+          <span class="flex items-center gap-2 bg-white border border-blue-100 px-4 py-2 rounded-full text-[10px] font-black uppercase text-zinc-600">
+            <span class="material-symbols-outlined text-sm text-primary">school</span>E-learnings
+          </span>
+          <span class="flex items-center gap-2 bg-white border border-blue-100 px-4 py-2 rounded-full text-[10px] font-black uppercase text-zinc-600">
+            <span class="material-symbols-outlined text-sm text-primary">menu_book</span>Manual
+          </span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-[#0D47A1] border-t border-blue-800">
+    <div class="max-w-[1280px] mx-auto px-8 md:px-16 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-4">
+        <img src="https://i.imgur.com/RZmGChq.png" alt="LC Waikiki" class="h-6 w-auto object-contain brightness-0 invert opacity-70">
+        <div>
+          <p class="label text-blue-300/60 mb-1">LC Waikiki Retail Pro</p>
+          <p class="text-blue-300/50 text-xs font-medium">Documento confidencial · Uso exclusivo interno · Dada Group</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="h-px w-6 bg-blue-400/30"></span>
+        <span class="label text-blue-300/50">Retail Pro v3.0 · 2026</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

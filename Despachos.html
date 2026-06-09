@@ -1,0 +1,159 @@
+<div id="despachos-container" class="animate-in fade-in duration-700 p-6">
+
+  <!-- Header -->
+  <div id="despStandardHeader" class="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+    <div>
+      <span class="text-[#1565C0] font-black uppercase tracking-[0.2em] text-xs">Recepción de Mercancía</span>
+      <h2 class="text-3xl font-black tracking-tighter text-on-surface mt-1">Despachos</h2>
+      <p id="despStoreName" class="text-zinc-500 font-bold uppercase text-xs tracking-widest mt-1"></p>
+    </div>
+    <div class="flex flex-wrap gap-3 items-center">
+      <select id="despCountryFilter" onchange="onDespCountryChange()"
+        class="hidden bg-white border border-blue-100 rounded-xl px-4 py-3 font-bold text-sm text-[#1565C0] shadow-sm focus:ring-primary min-w-[190px]">
+        <option value="">Seleccione país</option>
+        <option value="Costa Rica">🇨🇷 Costa Rica</option>
+        <option value="Curacao">🇨🇼 Curacao</option>
+        <option value="Dominican Republic">🇩🇴 Dominican Republic</option>
+        <option value="El Salvador">🇸🇻 El Salvador</option>
+        <option value="Guatemala">🇬🇹 Guatemala</option>
+        <option value="Panamá">🇵🇦 Panamá</option>
+        <option value="Venezuela">🇻🇪 Venezuela</option>
+      </select>
+
+      <select id="despStoreFilter" onchange="onDespStoreChange()"
+        class="hidden bg-white border border-blue-100 rounded-xl px-4 py-3 font-bold text-sm text-[#1565C0] shadow-sm focus:ring-primary min-w-[160px]">
+        <option value="">Seleccione tienda</option>
+      </select>
+
+      <select id="despSelector" onchange="onDespChange()"
+        class="bg-white border border-blue-100 rounded-xl px-4 py-3 font-bold text-sm text-[#1565C0] shadow-sm focus:ring-primary min-w-[200px]">
+        <option value="">Cargando despachos...</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Dashboard Admin -->
+  <div id="despAdminDashboard" class="hidden space-y-8">
+    <div class="rounded-[28px] bg-white border border-blue-50 shadow-sm p-6 lg:p-8">
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-end">
+        <label class="block">
+          <span class="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.18em] mb-3">Marca</span>
+          <select id="despBrandFilter" disabled class="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-4 font-black text-sm text-zinc-900 shadow-sm">
+            <option>LC Waikiki</option>
+          </select>
+        </label>
+        <button onclick="loadDespachosForStore(_despSelectedStore || '__ALL__', document.getElementById('despCountryFilter')?.value || '')"
+          class="h-[56px] rounded-2xl bg-zinc-900 text-white font-black uppercase tracking-[0.16em] text-xs hover:bg-[#0D47A1] transition-colors flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-base">local_shipping</span>
+          Ver Despachos
+        </button>
+      </div>
+
+      <div class="mt-7 pt-7 border-t border-zinc-100 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 items-end">
+        <label class="block">
+          <span class="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.18em] mb-3">Despacho</span>
+          <select id="despAdminDespFilter" onchange="renderDespAdminDashboard()" class="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 font-black text-sm text-zinc-900 shadow-sm">
+            <option value="__ALL_DESP__">Todos los despachos</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.18em] mb-3">País</span>
+          <select id="despAdminCountryProxy" onchange="syncDespAdminCountry(this.value)" class="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 font-black text-sm text-zinc-900 shadow-sm">
+            <option value="">Todos los países</option>
+            <option value="Costa Rica">🇨🇷 Costa Rica</option>
+            <option value="Curacao">🇨🇼 Curacao</option>
+            <option value="Dominican Republic">🇩🇴 Dominican Republic</option>
+            <option value="El Salvador">🇸🇻 El Salvador</option>
+            <option value="Guatemala">🇬🇹 Guatemala</option>
+            <option value="Panamá">🇵🇦 Panamá</option>
+            <option value="Venezuela">🇻🇪 Venezuela</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.18em] mb-3">Tienda</span>
+          <select id="despAdminStoreProxy" onchange="syncDespAdminStore(this.value)" class="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 font-black text-sm text-zinc-900 shadow-sm">
+            <option value="__ALL__">Todas las tiendas</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.18em] mb-3">Status</span>
+          <select id="despStatusFilter" onchange="renderDespAdminDashboard()" class="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 font-black text-sm text-zinc-900 shadow-sm">
+            <option value="PENDIENTE">Pendiente</option>
+            <option value="TODOS">Todos</option>
+            <option value="RECIBIDO">Recibido</option>
+          </select>
+        </label>
+        <p id="despAdminCount" class="text-[11px] font-black text-zinc-400 uppercase tracking-[0.16em] whitespace-nowrap pb-3">0 desp. · 0 invoices</p>
+      </div>
+    </div>
+
+    <div id="despAdminKpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="rounded-[24px] bg-white border border-blue-50 shadow-sm p-6">
+        <p class="text-[11px] font-black text-[#1565C0] uppercase tracking-[0.16em]">Contribución por unidades</p>
+        <h3 class="text-xl font-black text-zinc-900 uppercase tracking-tight mb-5">Merch Group</h3>
+        <div id="despMerchChart" class="min-h-[220px]"></div>
+      </div>
+      <div class="rounded-[24px] bg-white border border-blue-50 shadow-sm p-6">
+        <p class="text-[11px] font-black text-[#1565C0] uppercase tracking-[0.16em]">Contribución por unidades</p>
+        <h3 class="text-xl font-black text-zinc-900 uppercase tracking-tight mb-5">Season</h3>
+        <div id="despSeasonChart" class="min-h-[220px]"></div>
+      </div>
+    </div>
+
+    <div id="despAdminList" class="space-y-5"></div>
+  </div>
+
+  <!-- Estado vacío / error -->
+  <div id="despEmpty" class="hidden text-center py-16">
+    <span class="material-symbols-outlined text-5xl text-zinc-300">inventory_2</span>
+    <p class="mt-4 text-zinc-400 font-bold text-sm uppercase tracking-widest">Sin datos para este despacho</p>
+  </div>
+  <div id="despError" class="hidden bg-red-50 border border-red-200 rounded-2xl px-6 py-4 text-red-700 font-bold text-sm"></div>
+
+  <!-- Tabla resumen por Invoice ID -->
+  <div id="despSummaryWrap" class="hidden desp-standard-view">
+    <h3 class="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Resumen por Invoice ID</h3>
+    <div class="overflow-x-auto rounded-2xl border border-blue-100 shadow-sm">
+      <table class="w-full min-w-[980px] text-sm">
+        <thead>
+          <tr class="bg-[#0D47A1] text-white">
+            <th id="despSummaryDespachoHead" class="hidden px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest">Despacho</th>
+            <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest">Tienda</th>
+            <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest">Invoice ID</th>
+            <th class="px-3 py-3 text-right text-[10px] font-black uppercase tracking-widest">Cajas</th>
+            <th class="px-3 py-3 text-right text-[10px] font-black uppercase tracking-widest">Unidades</th>
+            <th class="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Status</th>
+            <th class="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Status RS</th>
+            <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest">Albaranes ICG</th>
+            <th class="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Fecha Llegada</th>
+            <th class="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest">Acción</th>
+          </tr>
+        </thead>
+        <tbody id="despSummaryBody" class="divide-y divide-blue-50 bg-white"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tabla desglose por departamento -->
+  <div id="despDeptWrap" class="hidden mt-8 desp-standard-view">
+    <h3 class="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Desglose por Departamento</h3>
+    <div class="overflow-x-auto rounded-2xl border border-blue-100 shadow-sm">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-blue-50">
+            <th id="despDeptDespachoHead" class="hidden px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-[#1565C0]">Despacho</th>
+            <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-[#1565C0]">Tienda</th>
+            <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-[#1565C0]">Invoice ID</th>
+            <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-[#1565C0]">Season</th>
+            <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-[#1565C0]">Departamento</th>
+            <th class="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest text-[#1565C0]">Unidades</th>
+          </tr>
+        </thead>
+        <tbody id="despDeptBody" class="divide-y divide-blue-50 bg-white"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>

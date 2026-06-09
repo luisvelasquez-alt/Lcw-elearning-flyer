@@ -1,0 +1,139 @@
+<div id="analysis-container" class="animate-in fade-in zoom-in-95 duration-700">
+
+  <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div>
+      <span class="text-[#1565C0] font-black uppercase tracking-[0.2em] text-xs">Performance Dashboard</span>
+      <h2 id="analysisStoreTitle" class="text-4xl md:text-5xl font-black tracking-tighter text-on-surface mt-2">Análisis</h2>
+      <div id="adminAnalysisStoreSwitcher" class="hidden mt-3 flex items-center gap-2">
+          <span class="material-symbols-outlined text-zinc-400 text-sm">store</span>
+          <select id="adminAnalysisStoreSelect" onchange="switchAnalysisStore(this.value)"
+              class="bg-white border border-blue-200 rounded-xl px-3 py-1.5 text-xs font-black uppercase tracking-tight text-zinc-800 shadow-sm focus:ring-2 focus:ring-[#1565C0] focus:border-transparent outline-none cursor-pointer">
+          </select>
+      </div>
+    </div>
+    <div class="bg-white p-4 rounded-[1.5rem] flex items-center gap-6 border border-blue-100 shadow-sm">
+      <div class="flex flex-col">
+        <span class="text-[10px] uppercase font-bold text-zinc-400 tracking-widest">Período de Informe</span>
+        <select id="weekPicker" onchange="fetchWeeklyData()" class="bg-transparent border-none font-black text-sm p-0 focus:ring-0 cursor-pointer uppercase text-zinc-800"></select>
+      </div>
+      <button onclick="window.print()" class="bg-zinc-900 text-white px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-tighter active:scale-95 transition-transform hover:bg-[#1565C0]">IMPRIMIR</button>
+    </div>
+  </div>
+
+  <!-- KPIs principales (bloques oscuros) -->
+  <section id="analysis-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12 transition-opacity duration-300">
+    <div id="card-v" class="bg-[#0D47A1] p-6 rounded-3xl shadow-xl border-2 border-blue-900 flex flex-col items-center justify-center h-40 transition-all duration-500">
+      <span class="text-blue-300 text-[9px] font-black uppercase tracking-widest mb-1">Ventas USD</span>
+      <span id="week-ventas"  class="text-white text-3xl font-black tracking-tighter">$0</span>
+      <span id="comp-v"       class="text-[10px] font-bold mt-2 text-blue-300">--% VS LY</span>
+      <span id="ly-val-v"     class="text-[9px] text-blue-400 font-medium italic uppercase tracking-tighter">LY: $0</span>
+    </div>
+    <div id="card-u" class="bg-[#0D47A1] p-6 rounded-3xl shadow-xl border-2 border-blue-900 flex flex-col items-center justify-center h-40 transition-all duration-500">
+      <span class="text-blue-300 text-[9px] font-black uppercase tracking-widest mb-1">Unidades</span>
+      <span id="week-unidades" class="text-white text-3xl font-black tracking-tighter">0</span>
+      <span id="comp-u"        class="text-[10px] font-bold mt-2 text-blue-300">--% VS LY</span>
+      <span id="ly-val-u"      class="text-[9px] text-blue-400 font-medium italic uppercase tracking-tighter">LY: 0</span>
+    </div>
+    <div id="card-t" class="bg-[#0D47A1] p-6 rounded-3xl shadow-xl border-2 border-blue-900 flex flex-col items-center justify-center h-40 transition-all duration-500">
+      <span class="text-blue-300 text-[9px] font-black uppercase tracking-widest mb-1">Tickets</span>
+      <span id="week-tickets"  class="text-white text-3xl font-black tracking-tighter">0</span>
+      <span id="comp-t"        class="text-[10px] font-bold mt-2 text-blue-300">--% VS LY</span>
+      <span id="ly-val-t"      class="text-[9px] text-blue-400 font-medium italic uppercase tracking-tighter">LY: 0</span>
+    </div>
+    <div id="card-tr" class="bg-[#0D47A1] p-6 rounded-3xl shadow-xl border-2 border-blue-900 flex flex-col items-center justify-center h-40 transition-all duration-500">
+      <span class="text-blue-300 text-[9px] font-black uppercase tracking-widest mb-1">Tráfico</span>
+      <span id="week-trafico"  class="text-white text-3xl font-black tracking-tighter">0</span>
+      <span id="comp-tr"       class="text-[10px] font-bold mt-2 text-blue-300">--% VS LY</span>
+      <span id="ly-val-tr"     class="text-[9px] text-blue-400 font-medium italic uppercase tracking-tighter">LY: 0</span>
+    </div>
+  </section>
+
+  <!-- KPIs derivados -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 text-center">
+    <div class="bg-white p-8 rounded-[2.5rem] shadow-sm flex flex-col justify-between h-64 border border-blue-100">
+      <div class="flex justify-between items-start">
+        <span class="text-xs font-black uppercase tracking-[0.15em] text-zinc-400">UPT</span>
+        <span class="material-symbols-outlined text-blue-200">trending_up</span>
+      </div>
+      <div>
+        <span id="upt-val"  class="text-6xl font-black tracking-tighter text-zinc-900">0.00</span>
+        <div  id="upt-comp" class="text-[11px] font-black mt-1"></div>
+      </div>
+      <p class="text-[10px] uppercase font-bold text-zinc-400 tracking-widest">Unidades por Transacción</p>
+    </div>
+    <div class="bg-white p-8 rounded-[2.5rem] shadow-sm flex flex-col justify-between h-64 border border-blue-100">
+      <div class="flex justify-between items-start">
+        <span class="text-xs font-black uppercase tracking-[0.15em] text-zinc-400">APT</span>
+        <span class="material-symbols-outlined text-blue-200">payments</span>
+      </div>
+      <div>
+        <span id="apt-val"  class="text-6xl font-black tracking-tighter text-zinc-900">$0</span>
+        <div  id="apt-comp" class="text-[11px] font-black mt-1"></div>
+      </div>
+      <p class="text-[10px] uppercase font-bold text-zinc-400 tracking-widest">Promedio por Ticket</p>
+    </div>
+    <div class="bg-white p-8 rounded-[2.5rem] shadow-sm flex flex-col justify-between h-64 border border-blue-100">
+      <div class="flex justify-between items-start">
+        <span class="text-xs font-black uppercase tracking-[0.15em] text-zinc-400">CONVERSIÓN</span>
+        <span class="material-symbols-outlined text-blue-200">hub</span>
+      </div>
+      <div>
+        <span id="conv-val"  class="text-6xl font-black tracking-tighter text-zinc-900">0%</span>
+        <div  id="conv-comp" class="text-[11px] font-black mt-1"></div>
+      </div>
+      <p class="text-[10px] uppercase font-bold text-zinc-400 tracking-widest">Tickets / Tráfico</p>
+    </div>
+  </div>
+
+  <!-- AI Strategist -->
+  <div class="mt-8 mb-6 p-1 bg-gradient-to-tr from-[#1565C0] to-[#607D8B] rounded-[2.2rem]">
+    <div class="bg-zinc-900 p-6 rounded-[2.1rem]">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-white/10 rounded-lg">
+            <span class="material-symbols-outlined text-white text-sm animate-pulse">psychology</span>
+          </div>
+          <div>
+            <h3 class="text-white font-black text-[10px] uppercase tracking-[0.2em]">Retail AI Strategist</h3>
+            <p class="text-zinc-500 text-[9px] font-bold">POWERED BY GEMINI FLASH</p>
+          </div>
+        </div>
+        <button onclick="generateAITips()" id="ai-btn" class="bg-white text-black px-5 py-2 rounded-full font-black text-[10px] uppercase hover:bg-[#1565C0] hover:text-white transition-all shadow-lg cursor-pointer">
+          GENERAR ESTRATEGIA
+        </button>
+      </div>
+      <div id="ai-tips-container" class="text-zinc-400 text-xs leading-relaxed min-h-[40px] border-t border-white/5 pt-4">
+        Escribe tu diagnóstico abajo y luego pulsa el botón para recibir consejos estratégicos.
+      </div>
+    </div>
+  </div>
+
+  <!-- Diagnóstico y compromisos -->
+  <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 pb-12">
+    <div class="bg-blue-50 p-8 rounded-[2.5rem] border border-blue-100">
+      <h3 class="text-xs font-black uppercase tracking-widest text-zinc-400 mb-6 flex items-center gap-2">
+        <span class="material-symbols-outlined text-sm">analytics</span> Diagnóstico de Operación
+      </h3>
+      <textarea id="feedback-diagnostico" rows="4"
+        class="w-full bg-white border border-blue-200 rounded-2xl p-4 text-sm text-zinc-800 placeholder:text-zinc-400 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+        placeholder="Detalla impactos de Clima, Mall, Competencia o Logística."></textarea>
+    </div>
+    <div class="bg-[#0D47A1] p-8 rounded-[2.5rem] shadow-2xl">
+      <h3 class="text-xs font-black uppercase tracking-widest text-blue-300 mb-6 flex items-center gap-2">
+        <span class="material-symbols-outlined text-sm text-blue-300">target</span> Compromisos de Mejora
+      </h3>
+      <textarea id="feedback-accion" rows="4"
+        class="w-full bg-blue-900 border border-blue-700 rounded-2xl p-4 text-base font-medium text-zinc-100 placeholder:text-blue-400 focus:ring-2 focus:ring-blue-300 focus:border-transparent outline-none transition-all"
+        placeholder="¿Qué pasos daremos para ganar la próxima semana?"></textarea>
+      <div class="mt-6 flex justify-between items-center">
+        <div class="flex flex-col">
+          <span class="text-[9px] text-blue-300 uppercase font-black tracking-widest">Validado por</span>
+          <span class="text-white font-bold text-xs tracking-tighter">STORE LEADERSHIP TEAM</span>
+        </div>
+        <button onclick="saveFeedback()" class="bg-white text-[#0D47A1] px-6 py-2 rounded-full font-black text-xs uppercase hover:bg-blue-100 transition-colors cursor-pointer">
+          Guardar Análisis
+        </button>
+      </div>
+    </div>
+  </section>
+</div>

@@ -1,0 +1,54 @@
+<div id="budget-container" class="animate-in fade-in duration-700 p-6">
+  <div class="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+    <div>
+      <span class="text-[#1565C0] font-black uppercase tracking-[0.2em] text-xs">Estado Financiero</span>
+      <h2 class="text-3xl font-black tracking-tighter text-on-surface mt-1">Estado de Presupuesto</h2>
+      <p id="budgetStoreName" class="text-zinc-500 font-bold uppercase text-xs tracking-widest mt-1"></p>
+    </div>
+    <select id="budgetMonthPicker" onchange="loadBudgetData()" class="bg-white border border-blue-100 rounded-xl px-4 py-3 font-bold text-sm text-[#1565C0] shadow-sm focus:ring-primary min-w-[160px]">
+      <option value="0">Enero</option><option value="1">Febrero</option><option value="2">Marzo</option>
+      <option value="3">Abril</option><option value="4">Mayo</option><option value="5">Junio</option>
+      <option value="6">Julio</option><option value="7">Agosto</option><option value="8">Septiembre</option>
+      <option value="9">Octubre</option><option value="10">Noviembre</option><option value="11">Diciembre</option>
+    </select>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- MTD -->
+    <div class="bg-[#0D47A1] rounded-[2rem] p-8 border border-blue-800 shadow-2xl relative overflow-hidden">
+      <div class="absolute top-0 right-0 w-28 h-28 bg-white/5 rounded-full -translate-y-6 translate-x-6"></div>
+      <span class="text-[10px] font-black text-blue-300 uppercase tracking-[0.3em]">Month To Date (MTD)</span>
+      <div class="mt-4 flex justify-between items-end">
+        <h3 id="mtd-actual" class="text-4xl font-black text-white tracking-tighter">$0</h3>
+        <span id="mtd-pct" class="text-emerald-400 font-black text-xl">0%</span>
+      </div>
+      <div class="mt-6 space-y-2">
+        <div class="flex justify-between text-[10px] font-bold text-blue-300 uppercase">
+          <span>Progreso vs Meta Mensual</span>
+          <span id="mtd-target">Meta: $0</span>
+        </div>
+        <div class="w-full bg-blue-900 h-3 rounded-full overflow-hidden">
+          <div id="mtd-bar" class="h-full bg-blue-300 transition-all duration-1000" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- YTD -->
+    <div class="bg-blue-50 rounded-[2rem] p-8 border border-blue-100 shadow-sm">
+      <span class="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">Year To Date (YTD)</span>
+      <div class="mt-4 flex justify-between items-end">
+        <h3 id="ytd-actual" class="text-4xl font-black text-zinc-900 tracking-tighter">$0</h3>
+        <span id="ytd-pct" class="text-zinc-900 font-black text-xl">0%</span>
+      </div>
+      <div class="mt-6 space-y-2">
+        <div class="flex justify-between text-[10px] font-bold text-zinc-400 uppercase">
+          <span>Progreso Anual</span>
+          <span id="ytd-target">Meta: $0</span>
+        </div>
+        <div class="w-full bg-blue-100 h-3 rounded-full overflow-hidden">
+          <div id="ytd-bar" class="h-full bg-[#1565C0] transition-all duration-1000" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

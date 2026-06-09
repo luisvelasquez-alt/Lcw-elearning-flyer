@@ -1,0 +1,242 @@
+<div id="rs-container" class="animate-in fade-in duration-700 p-4 md:p-6 space-y-8">
+  <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div>
+      <span class="text-[#1565C0] font-black uppercase tracking-[0.2em] text-[10px]">RetailStore · Informes de Stock</span>
+      <h2 class="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 mt-1">Retail Store</h2>
+      <p id="rs-meta" class="text-[11px] text-zinc-400 font-bold mt-1 uppercase tracking-widest">Cargando...</p>
+    </div>
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+      <div id="rs-admin-store-switcher" class="hidden">
+        <select id="rs-admin-store-select" onchange="rsSwitchAdminRetailStore(this.value)"
+          class="h-11 min-w-[150px] rounded-xl border border-blue-100 bg-white px-3 text-[11px] font-black uppercase tracking-widest text-zinc-700 outline-none focus:border-[#1565C0]">
+          <option value="">Cargando...</option>
+        </select>
+      </div>
+      <select id="rs-family-filter" onchange="rsApplyFamilyFilter()"
+        class="h-11 min-w-[160px] rounded-xl border border-blue-100 bg-white px-3 text-[11px] font-black uppercase tracking-widest text-zinc-700 outline-none focus:border-[#1565C0]">
+        <option value="">Familia: Todas</option>
+      </select>
+      <button onclick="initRetailStore()"
+        class="self-start md:self-auto bg-zinc-900 text-white px-5 py-3 rounded-2xl hover:bg-[#1565C0] transition-all flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.14em] shadow-lg">
+        <span class="material-symbols-outlined text-base">sync</span>Actualizar
+      </button>
+    </div>
+  </div>
+
+  <div id="rs-loading" class="flex flex-col items-center justify-center py-28">
+    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1565C0]"></div>
+    <p class="mt-4 text-[10px] font-black tracking-[0.22em] text-zinc-400 uppercase">Conectando base de Datos</p>
+  </div>
+
+  <div id="rs-empty" class="hidden flex flex-col items-center justify-center py-28 text-center">
+    <span class="material-symbols-outlined text-6xl text-zinc-300 mb-4">store</span>
+    <p class="font-black text-zinc-400 uppercase tracking-widest text-sm">Sin datos</p>
+    <p id="rs-empty-msg" class="text-zinc-400 text-[11px] mt-2 max-w-sm"></p>
+  </div>
+
+  <div id="rs-content" class="hidden space-y-8">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div class="bg-white rounded-[1.5rem] border border-blue-100 shadow-sm p-5 flex flex-col gap-1">
+        <span class="text-[9px] font-black text-amber-500 uppercase tracking-[0.18em]">En Bodega</span>
+        <span id="rs-kpi-en-bodega" class="text-2xl font-black text-zinc-900 tracking-tight">-</span>
+        <span class="text-[9px] text-zinc-400 font-bold uppercase tracking-wide">warehouse</span>
+      </div>
+      <div class="bg-white rounded-[1.5rem] border border-red-100 shadow-sm p-5 flex flex-col gap-1">
+        <span class="text-[9px] font-black text-red-500 uppercase tracking-[0.18em]">Por Reponer</span>
+        <span id="rs-kpi-reponer" class="text-2xl font-black text-red-600 tracking-tight">-</span>
+        <span class="text-[9px] text-zinc-400 font-bold uppercase tracking-wide">unidades sin rayón</span>
+      </div>
+      <div class="bg-white rounded-[1.5rem] border border-blue-100 shadow-sm p-5 flex flex-col gap-1">
+        <span class="text-[9px] font-black text-[#1565C0] uppercase tracking-[0.18em]">Movimientos</span>
+        <span id="rs-kpi-movimientos" class="text-2xl font-black text-zinc-900 tracking-tight">-</span>
+        <span class="text-[9px] text-zinc-400 font-bold uppercase tracking-wide">Depo → Rayón</span>
+      </div>
+      <div class="bg-white rounded-[1.5rem] border border-red-100 shadow-sm p-5 flex flex-col gap-1">
+        <span class="text-[9px] font-black text-red-500 uppercase tracking-[0.18em]">Negativos Rayón</span>
+        <span id="rs-kpi-negativos" class="text-2xl font-black text-zinc-900 tracking-tight">-</span>
+        <span class="text-[9px] text-zinc-400 font-bold uppercase tracking-wide">Reporte 1</span>
+      </div>
+      <div class="bg-white rounded-[1.5rem] border border-amber-100 shadow-sm p-5 flex flex-col gap-1">
+        <span class="text-[9px] font-black text-amber-500 uppercase tracking-[0.18em]">Last Pieces</span>
+        <span id="rs-kpi-tallas-unicas" class="text-2xl font-black text-zinc-900 tracking-tight">-</span>
+        <span id="rs-kpi-tallas-unicas-sub" class="text-[9px] text-zinc-400 font-bold uppercase tracking-wide">Specialcode + Color ≤ 3</span>
+      </div>
+      <div class="bg-white rounded-[1.5rem] border border-blue-100 shadow-sm p-5 flex flex-col gap-1">
+        <span class="text-[9px] font-black text-[#1565C0] uppercase tracking-[0.18em]">Última Recepción</span>
+        <span id="rs-kpi-recepcion" class="text-2xl font-black text-zinc-900 tracking-tight">-</span>
+        <span class="text-[9px] text-zinc-400 font-bold uppercase tracking-wide">Last Acceptance</span>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-[2rem] border border-blue-100 shadow-sm overflow-hidden">
+      <div class="px-6 py-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="min-w-0">
+          <p class="text-[10px] font-black text-[#1565C0] uppercase tracking-[0.18em]">Carga de Reportes</p>
+          <h3 class="text-xl font-black text-zinc-900 tracking-tight mt-0.5">Adjuntar reporte de tienda</h3>
+          <p id="rs-upload-status" class="text-[11px] text-zinc-400 mt-1">Se guardará en Drive con nombre estándar y se registrará para BD.</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-[140px_150px_minmax(200px,1fr)_auto] gap-3 lg:min-w-[720px]">
+          <select id="rs-upload-report-type"
+            class="h-11 rounded-xl border border-blue-100 bg-blue-50/40 px-3 text-[11px] font-black uppercase tracking-widest text-zinc-700 outline-none focus:border-[#1565C0]">
+            <option value="AUTO">Auto detectar</option>
+            <option value="RS01">RS01</option>
+            <option value="RS06">RS06</option>
+            <option value="RS25">RS25</option>
+            <option value="RS41">RS41</option>
+            <option value="RS44">RS44</option>
+            <option value="RS55">RS55</option>
+            <option value="RS63">RS63</option>
+            <option value="OTRO">Otro</option>
+          </select>
+          <input id="rs-upload-report-date" type="date"
+            class="h-11 rounded-xl border border-blue-100 bg-blue-50/40 px-3 text-[11px] font-black uppercase tracking-widest text-zinc-700 outline-none focus:border-[#1565C0]">
+          <label class="h-11 rounded-xl border border-dashed border-blue-200 bg-blue-50/30 px-3 flex items-center gap-2 cursor-pointer hover:bg-blue-50 transition-colors min-w-0">
+            <span class="material-symbols-outlined text-[18px] text-[#1565C0]">attach_file</span>
+            <span id="rs-upload-file-name" class="truncate text-[11px] font-black uppercase tracking-widest text-zinc-500">Seleccionar archivo</span>
+            <input id="rs-upload-file-input" type="file" class="hidden" accept=".xlsx,.xls,.csv" multiple onchange="rsHandleReportFileSelect(this)">
+          </label>
+          <button id="rs-upload-submit" onclick="rsUploadReportFile()"
+            class="h-11 rounded-xl bg-zinc-900 px-4 text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#1565C0] transition-colors inline-flex items-center justify-center gap-1.5">
+            <span class="material-symbols-outlined text-sm">cloud_upload</span>Subir
+          </button>
+        </div>
+      </div>
+      <div id="rs-upload-history" class="hidden border-t border-blue-50 px-6 py-3"></div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+      <div class="bg-white rounded-[2rem] border border-blue-100 shadow-sm overflow-hidden">
+        <div class="px-6 pt-6 pb-2">
+          <p class="text-[10px] font-black text-[#1565C0] uppercase tracking-[0.18em]">Informe 41 · Distribución</p>
+          <h3 class="text-xl font-black text-zinc-900 tracking-tight mt-0.5">Unidades por Reponer - Top Group</h3>
+          <p class="text-[11px] text-zinc-400 mt-1">% de unidades en bodega sin rayón por grupo</p>
+        </div>
+        <div class="flex flex-col lg:flex-row items-center gap-0">
+          <div id="rs-pie-chart" class="w-full lg:w-1/2" style="height:240px;"></div>
+          <div id="rs-pie-legend" class="w-full lg:w-1/2 px-6 pb-6 space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-[2rem] border border-blue-100 shadow-sm overflow-hidden">
+        <div class="px-6 pt-6 pb-2">
+          <p class="text-[10px] font-black text-[#1565C0] uppercase tracking-[0.18em]">Informe 55 · Distribución</p>
+          <h3 class="text-xl font-black text-zinc-900 tracking-tight mt-0.5">Contribución Depo → Rayón - Top Group</h3>
+          <p class="text-[11px] text-zinc-400 mt-1">% de unidades movidas de Depo a Rayón por grupo</p>
+        </div>
+        <div class="flex flex-col lg:flex-row items-center gap-0">
+          <div id="rs-55-pie-chart" class="w-full lg:w-1/2" style="height:240px;"></div>
+          <div id="rs-55-pie-legend" class="w-full lg:w-1/2 px-6 pb-6 space-y-2"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      <div class="bg-white rounded-[2rem] border border-blue-100 shadow-sm overflow-hidden">
+        <div class="px-5 pt-5 pb-1">
+          <p id="rs-01-family-eyebrow" class="text-[10px] font-black text-[#1565C0] uppercase tracking-[0.18em]">Reporte 1 · Warehouse</p>
+          <h3 class="text-lg font-black text-zinc-900 tracking-tight mt-0.5">Familia de Producto</h3>
+          <p id="rs-01-family-subtitle" class="text-[11px] text-zinc-400 mt-1">% de unidades por Apparel, Accessories y Shoes</p>
+        </div>
+        <div class="flex flex-col lg:flex-row items-center gap-0">
+          <div id="rs-01-family-pie-chart" class="w-full lg:w-1/2" style="height:220px;"></div>
+          <div id="rs-01-family-pie-legend" class="w-full lg:w-1/2 px-5 pb-5 space-y-1.5"></div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-[2rem] border border-blue-100 shadow-sm overflow-hidden">
+        <div class="px-5 pt-5 pb-1 flex items-start justify-between gap-3">
+          <div>
+            <p id="rs-01-season-eyebrow" class="text-[10px] font-black text-[#1565C0] uppercase tracking-[0.18em]">Reporte 1 · Warehouse</p>
+            <h3 class="text-lg font-black text-zinc-900 tracking-tight mt-0.5">Contribución por Season</h3>
+            <p id="rs-01-season-subtitle" class="text-[11px] text-zinc-400 mt-1">% de unidades en warehouse por temporada</p>
+          </div>
+          <select id="rs-01-stock-metric" onchange="rsRenderReport1ContributionCharts()"
+            class="h-9 w-32 rounded-xl border border-blue-100 bg-blue-50/40 px-2 text-[10px] font-black uppercase tracking-widest text-[#1565C0] outline-none focus:border-[#1565C0]">
+            <option value="warehouse">Warehouse</option>
+            <option value="rayon">Rayón</option>
+          </select>
+        </div>
+        <div class="flex flex-col lg:flex-row items-center gap-0">
+          <div id="rs-01-season-pie-chart" class="w-full lg:w-1/2" style="height:220px;"></div>
+          <div id="rs-01-season-pie-legend" class="w-full lg:w-1/2 px-5 pb-5 space-y-1.5"></div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-[2rem] border border-blue-100 shadow-sm overflow-hidden">
+        <div class="px-5 pt-5 pb-1 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div>
+            <p id="rs-01-merch-eyebrow" class="text-[10px] font-black text-[#1565C0] uppercase tracking-[0.18em]">Reporte 1 · Warehouse</p>
+            <h3 class="text-lg font-black text-zinc-900 tracking-tight mt-0.5">Contribución por Merch Group</h3>
+            <p id="rs-01-merch-subtitle" class="text-[11px] text-zinc-400 mt-1">% de unidades en warehouse por grupo comercial</p>
+          </div>
+          <div class="relative shrink-0 w-full sm:w-44">
+            <button type="button" onclick="rsToggleMerchSeasonDropdown(event)" class="w-full h-9 rounded-xl border border-blue-100 bg-blue-50/40 px-3 inline-flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-widest text-[#1565C0] hover:bg-blue-50 transition-colors">
+              <span id="rs-01-merch-season-label" class="truncate">Season: Todas</span>
+              <span class="material-symbols-outlined text-[16px] leading-none">expand_more</span>
+            </button>
+            <div id="rs-01-merch-season-filter" class="hidden absolute right-0 z-30 mt-2 w-full rounded-2xl border border-blue-100 bg-white p-2 shadow-xl max-h-56 overflow-auto"></div>
+          </div>
+        </div>
+        <div class="flex flex-col lg:flex-row items-center gap-0">
+          <div id="rs-01-merch-pie-chart" class="w-full lg:w-1/2" style="height:220px;"></div>
+          <div id="rs-01-merch-pie-legend" class="w-full lg:w-1/2 px-5 pb-5 space-y-1.5"></div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-[2rem] border border-amber-100 shadow-sm overflow-hidden">
+        <div class="px-5 pt-5 pb-1 flex items-start justify-between gap-3">
+          <div>
+            <p id="rs-01-last-pieces-eyebrow" class="text-[10px] font-black text-amber-500 uppercase tracking-[0.18em]">Reporte 1 · Warehouse</p>
+            <h3 class="text-lg font-black text-zinc-900 tracking-tight mt-0.5">Last Pieces</h3>
+            <p id="rs-01-last-pieces-subtitle" class="text-[11px] text-zinc-400 mt-1">Contribución de Specialcode + Color ≤ 3</p>
+          </div>
+          <select id="rs-01-last-pieces-metric" onchange="rsRenderLastPiecesPieChart()"
+            class="h-9 w-32 rounded-xl border border-amber-100 bg-amber-50/40 px-2 text-[10px] font-black uppercase tracking-widest text-amber-600 outline-none focus:border-amber-500">
+            <option value="warehouse">Warehouse</option>
+            <option value="rayon">Rayón</option>
+          </select>
+        </div>
+        <div class="flex flex-col lg:flex-row items-center gap-0">
+          <div id="rs-01-last-pieces-pie-chart" class="w-full lg:w-1/2" style="height:220px;"></div>
+          <div id="rs-01-last-pieces-pie-legend" class="w-full lg:w-1/2 px-5 pb-5 space-y-1.5"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-white rounded-[1.5rem] border border-blue-100 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 flex flex-col gap-4">
+          <div>
+            <p class="text-[10px] font-black text-[#1565C0] uppercase tracking-[0.18em]">Reporte 1</p>
+            <h3 class="text-base font-black text-zinc-900 tracking-tight mt-0.5">Listado de Negativos en Rayón</h3>
+            <p class="text-[11px] text-zinc-400 mt-1">Productos con stock negativo en piso de ventas</p>
+          </div>
+          <div class="flex items-center justify-between gap-3">
+            <span id="rs-negativos-count" class="text-[10px] font-black text-zinc-400 uppercase tracking-widest"></span>
+            <button onclick="rsDownloadNegativosRayon()"
+              class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#1565C0] transition-colors">
+              <span class="material-symbols-outlined text-sm">download</span>Excel
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-[1.5rem] border border-amber-100 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 flex flex-col gap-4">
+          <div>
+            <p class="text-[10px] font-black text-amber-500 uppercase tracking-[0.18em]">Reporte 1</p>
+            <h3 class="text-base font-black text-zinc-900 tracking-tight mt-0.5">Listado de Last Pieces</h3>
+            <p class="text-[11px] text-zinc-400 mt-1">Specialcode + Color con warehouse ≤ 3</p>
+          </div>
+          <div class="flex items-center justify-between gap-3">
+            <span id="rs-last-pieces-count" class="text-[10px] font-black text-zinc-400 uppercase tracking-widest"></span>
+            <button onclick="rsDownloadLastPieces()"
+              class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#1565C0] transition-colors">
+              <span class="material-symbols-outlined text-sm">download</span>Excel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,289 @@
+<div id="entry-container" class="animate-in fade-in slide-in-from-bottom-4 duration-700">
+
+  <div class="mb-8">
+    <div class="flex items-center gap-2 mb-1">
+      <span class="h-2 w-2 rounded-full bg-primary animate-pulse"></span>
+      <span class="text-[10px] font-bold uppercase tracking-widest text-secondary">Estado del Sistema: En Línea</span>
+    </div>
+    <h2 id="displayStoreName" class="text-4xl font-black tracking-tight text-on-surface">Cargando Tienda...</h2>
+    <p class="text-on-secondary-container font-medium mt-1">Captura de Rendimiento Diario</p>
+
+    <div id="adminStoreSwitcher" class="hidden mt-6 p-4 bg-blue-50 rounded-2xl border border-blue-100 w-full max-w-sm">
+      <label class="block text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2 ml-1">Cambiar Ubicación (Modo Admin)</label>
+      <select id="adminEntryStoreSelect" onchange="switchStoreAsAdmin(this.value)"
+              class="w-full bg-white border-none rounded-xl px-4 py-3 text-xs font-black uppercase tracking-tight shadow-sm focus:ring-2 focus:ring-primary">
+        <option disabled selected>Cargando tiendas...</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- BLOQUE 1 CRÍTICO: Métricas LY de referencia -->
+  <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-[#0D47A1] p-6 rounded-[2rem] flex flex-col items-center justify-center h-44 shadow-xl border border-blue-900">
+      <span class="text-blue-300 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Ventas Año Anterior</span>
+      <span id="lyVentas"   class="text-white text-3xl font-black tracking-tighter">---</span>
+      <span id="compVentas" class="mt-2 text-[11px] font-black uppercase tracking-widest"></span>
+    </div>
+    <div class="bg-[#0D47A1] p-6 rounded-[2rem] flex flex-col items-center justify-center h-44 shadow-xl border border-blue-900">
+      <span class="text-blue-300 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Unidades Año Anterior</span>
+      <span id="lyUnidades"   class="text-white text-3xl font-black tracking-tighter">---</span>
+      <span id="compUnidades" class="mt-2 text-[11px] font-black uppercase tracking-widest"></span>
+    </div>
+    <div class="bg-[#0D47A1] p-6 rounded-[2rem] flex flex-col items-center justify-center h-44 shadow-xl border border-blue-900">
+      <span class="text-blue-300 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Tickets Año Anterior</span>
+      <span id="lyTickets"   class="text-white text-3xl font-black tracking-tighter">---</span>
+      <span id="compTickets" class="mt-2 text-[11px] font-black uppercase tracking-widest"></span>
+    </div>
+    <div class="bg-[#0D47A1] p-6 rounded-[2rem] flex flex-col items-center justify-center h-44 shadow-xl border border-blue-900">
+      <span class="text-blue-300 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Tráfico Año Anterior</span>
+      <span id="lyTrafico"   class="text-white text-3xl font-black tracking-tighter">---</span>
+      <span id="compTrafico" class="mt-2 text-[11px] font-black uppercase tracking-widest"></span>
+    </div>
+  </section>
+
+  <!-- BLOQUE 2: Referencia departamentos LY -->
+  <section id="deptLYReference" class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-12">
+    <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100 flex flex-col shadow-sm">
+      <span class="text-blue-400 text-[9px] font-black uppercase tracking-widest mb-1">BG Women LY</span>
+      <div class="flex justify-between items-end">
+        <span id="lyBg" class="text-zinc-900 text-xl font-black tracking-tighter">$0.00</span>
+        <span id="compBg" class="text-[10px] font-black text-zinc-400 uppercase">--%</span>
+      </div>
+    </div>
+    <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100 flex flex-col shadow-sm">
+      <span class="text-blue-400 text-[9px] font-black uppercase tracking-widest mb-1">BU Men LY</span>
+      <div class="flex justify-between items-end">
+        <span id="lyBu" class="text-zinc-900 text-xl font-black tracking-tighter">$0.00</span>
+        <span id="compBu" class="text-[10px] font-black text-zinc-400 uppercase">--%</span>
+      </div>
+    </div>
+    <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100 flex flex-col shadow-sm">
+      <span class="text-blue-400 text-[9px] font-black uppercase tracking-widest mb-1">CK Girls LY</span>
+      <div class="flex justify-between items-end">
+        <span id="lyCk" class="text-zinc-900 text-xl font-black tracking-tighter">$0.00</span>
+        <span id="compCk" class="text-[10px] font-black text-zinc-400 uppercase">--%</span>
+      </div>
+    </div>
+    <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100 flex flex-col shadow-sm">
+      <span class="text-blue-400 text-[9px] font-black uppercase tracking-widest mb-1">CU Boys LY</span>
+      <div class="flex justify-between items-end">
+        <span id="lyCu" class="text-zinc-900 text-xl font-black tracking-tighter">$0.00</span>
+        <span id="compCu" class="text-[10px] font-black text-zinc-400 uppercase">--%</span>
+      </div>
+    </div>
+    <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100 flex flex-col shadow-sm">
+      <span class="text-blue-400 text-[9px] font-black uppercase tracking-widest mb-1">ST Standard LY</span>
+      <div class="flex justify-between items-end">
+        <span id="lySt" class="text-zinc-900 text-xl font-black tracking-tighter">$0.00</span>
+        <span id="compSt" class="text-[10px] font-black text-zinc-400 uppercase">--%</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Barra de carga -->
+  <div id="entryLoadingBar" class="hidden mb-10">
+    <div class="bg-[#0D47A1] rounded-[1.5rem] border border-blue-800 shadow-xl px-6 py-5">
+      <div class="flex items-center justify-between gap-4 mb-3">
+        <div class="flex items-center gap-3">
+          <div class="h-2.5 w-2.5 rounded-full bg-blue-300 animate-pulse"></div>
+          <span class="text-[10px] font-black uppercase tracking-[0.25em] text-blue-300">Sincronizando información...</span>
+        </div>
+      </div>
+      <div class="w-full h-1.5 bg-blue-900 rounded-full overflow-hidden">
+        <div class="entry-loading-progress h-full bg-blue-300" style="width:30%"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+    <!-- FORMULARIO PRINCIPAL -->
+    <section class="lg:col-span-8 bg-surface-container-lowest rounded-[2.5rem] p-10 pb-28 md:pb-10 shadow-sm border border-blue-100">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+        <h3 class="text-sm font-black uppercase tracking-widest text-primary">Entrada de Métricas</h3>
+        <input type="date" id="inputDate" onchange="fetchStoreData()" class="bg-surface-container-high border-none rounded-lg font-bold text-xs p-2 focus:ring-primary">
+      </div>
+
+      <form id="dailyForm" onsubmit="event.preventDefault(); submitEntry();" class="space-y-8">
+
+        <!-- BLOQUE CRÍTICO: KPIs de venta -->
+        <div>
+          <p class="text-[9px] font-black uppercase tracking-[0.3em] text-primary mb-4 flex items-center gap-2">
+            <span class="h-1.5 w-4 bg-primary rounded-full"></span> Bloque 1 — KPIs Críticos de Venta
+          </p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+            <div class="group">
+              <label class="block text-[10px] font-black uppercase tracking-widest text-secondary mb-2">Ventas Actuales (USD)</label>
+              <input id="valVentas" step="0.01" required oninput="if(typeof updateBudgetDisplay==='function') updateBudgetDisplay()" class="w-full bg-surface-container-high border-none rounded-md px-4 py-4 text-lg font-bold focus:ring-0" placeholder="0.00" type="number"/>
+            </div>
+            <div class="group">
+              <label class="block text-[10px] font-black uppercase tracking-widest text-secondary mb-2">Tráfico de Piso</label>
+              <input id="valTrafico" required class="w-full bg-surface-container-high border-none rounded-md px-4 py-4 text-lg font-bold focus:ring-0" placeholder="Conteo" type="number"/>
+            </div>
+            <div class="group">
+              <label class="block text-[10px] font-black uppercase tracking-widest text-secondary mb-2">Unidades Vendidas</label>
+              <input id="valUnidades" required class="w-full bg-surface-container-high border-none rounded-md px-4 py-4 text-lg font-bold focus:ring-0" placeholder="Cant." type="number"/>
+            </div>
+            <div class="group">
+              <label class="block text-[10px] font-black uppercase tracking-widest text-secondary mb-2">Tickets (Transacciones)</label>
+              <input id="valTickets" required class="w-full bg-surface-container-high border-none rounded-md px-4 py-4 text-lg font-bold focus:ring-0" placeholder="Cuenta" type="number"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOQUE INVENTARIO: Stock ICG + Stock RS -->
+        <div class="pt-8 border-t border-blue-50">
+          <p class="text-[9px] font-black uppercase tracking-[0.3em] text-primary mb-4 flex items-center gap-2">
+            <span class="h-1.5 w-4 bg-blue-300 rounded-full"></span> Bloque 2 — Control de Inventario
+          </p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+            <div class="group">
+              <label class="block text-[10px] font-black uppercase tracking-widest text-secondary mb-2">Stock ICG (Sistema)</label>
+              <input id="valStockICG" required oninput="updateStockComparison()" class="w-full bg-surface-container-high border-none rounded-md px-4 py-4 text-lg font-bold focus:ring-0" placeholder="Unidades ICG" type="number"/>
+            </div>
+            <div class="group">
+              <label class="block text-[10px] font-black uppercase tracking-widest text-secondary mb-2">Stock RS (Retail Store)</label>
+              <input id="valStockRS" required class="w-full bg-surface-container-high border-none rounded-md px-4 py-4 text-lg font-bold focus:ring-0" placeholder="Unidades RS" type="number"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOQUE DEPARTAMENTOS: 5 depts LCW -->
+        <div class="mt-12 pt-8 border-t border-blue-50">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-2">
+            <div>
+              <h3 class="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Desglose por Departamento</h3>
+              <p class="text-[9px] text-zinc-400 font-bold uppercase mt-1">Comparativa vs LY en tiempo real</p>
+            </div>
+            <div id="deptStatusBadge" class="px-4 py-1.5 rounded-full bg-blue-50 text-blue-400 text-[9px] font-black uppercase tracking-widest transition-all">
+              Esperando Datos
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div class="bg-surface-container-high p-4 rounded-2xl">
+              <label class="block text-[9px] font-black text-zinc-500 uppercase mb-1">BG — Women</label>
+              <input id="valBg" type="number" step="0.01" oninput="validateDeptSum()" class="w-full bg-transparent border-none p-0 text-xl font-black text-on-surface focus:ring-0 placeholder:text-zinc-300" placeholder="0.00">
+            </div>
+            <div class="bg-surface-container-high p-4 rounded-2xl">
+              <label class="block text-[9px] font-black text-zinc-500 uppercase mb-1">BU — Men</label>
+              <input id="valBu" type="number" step="0.01" oninput="validateDeptSum()" class="w-full bg-transparent border-none p-0 text-xl font-black text-on-surface focus:ring-0 placeholder:text-zinc-300" placeholder="0.00">
+            </div>
+            <div class="bg-surface-container-high p-4 rounded-2xl">
+              <label class="block text-[9px] font-black text-zinc-500 uppercase mb-1">CK — Girls</label>
+              <input id="valCk" type="number" step="0.01" oninput="validateDeptSum()" class="w-full bg-transparent border-none p-0 text-xl font-black text-on-surface focus:ring-0 placeholder:text-zinc-300" placeholder="0.00">
+            </div>
+            <div class="bg-surface-container-high p-4 rounded-2xl">
+              <label class="block text-[9px] font-black text-zinc-500 uppercase mb-1">CU — Boys</label>
+              <input id="valCu" type="number" step="0.01" oninput="validateDeptSum()" class="w-full bg-transparent border-none p-0 text-xl font-black text-on-surface focus:ring-0 placeholder:text-zinc-300" placeholder="0.00">
+            </div>
+            <div class="bg-surface-container-high p-4 rounded-2xl">
+              <label class="block text-[9px] font-black text-zinc-500 uppercase mb-1">ST — Standard</label>
+              <input id="valSt" type="number" step="0.01" oninput="validateDeptSum()" class="w-full bg-transparent border-none p-0 text-xl font-black text-on-surface focus:ring-0 placeholder:text-zinc-300" placeholder="0.00">
+            </div>
+          </div>
+
+          <div class="mt-4 flex items-center justify-between px-2">
+            <div class="flex-1 mr-4">
+              <div class="w-full bg-blue-50 h-1.5 rounded-full overflow-hidden">
+                <div id="deptBar" class="h-full bg-primary transition-all duration-500" style="width:0%"></div>
+              </div>
+            </div>
+            <span id="deptDiffLabel" class="text-[10px] font-black uppercase text-zinc-400">Dif: $0.00</span>
+          </div>
+        </div>
+
+        <!-- Foto de soporte -->
+        <div class="mt-12">
+          <div class="flex items-center justify-between mb-4">
+            <label class="block text-[10px] font-black uppercase tracking-widest text-secondary">Foto de Soporte / Auditoría</label>
+            <button id="clearFilesBtn" onclick="clearEntryFiles()" class="hidden items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-rose-400 hover:text-rose-600 transition-colors">
+              <span class="material-symbols-outlined text-sm">delete</span>
+              Borrar adjuntos
+            </button>
+          </div>
+          <div onclick="document.getElementById('fileInput').click()" class="border-2 border-dashed border-blue-200 rounded-2xl p-12 flex flex-col items-center justify-center bg-blue-50/30 hover:bg-blue-50 transition-colors cursor-pointer group">
+            <span id="uploadIcon" class="material-symbols-outlined text-4xl text-blue-200 group-hover:text-primary transition-colors mb-3">cloud_upload</span>
+            <p id="uploadText" class="text-xs font-bold text-zinc-500 uppercase tracking-widest text-center">TOCA PARA SUBIR ARCHIVOS</p>
+            <p class="text-[10px] text-zinc-400 mt-1">Puedes seleccionar varios archivos a la vez</p>
+            <input id="fileInput" class="hidden" type="file" multiple accept="image/*,application/pdf" onchange="handleFileSelect(this)">
+          </div>
+        </div>
+
+        <div class="mt-8">
+          <label for="entryComments" class="block text-[10px] font-black uppercase tracking-widest text-secondary mb-3">Comentarios</label>
+          <textarea id="entryComments" rows="4" maxlength="1200" class="w-full bg-surface-container-high border-none rounded-2xl px-5 py-4 text-sm font-semibold text-on-surface focus:ring-primary placeholder:text-zinc-400 resize-y" placeholder="Escribe aquí cualquier comentario relevante para el reporte diario"></textarea>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-4 pt-4">
+          <button type="submit" id="submitBtn" class="signature-gradient text-white px-10 py-4 rounded-xl font-black uppercase tracking-widest text-xs flex-1 active:scale-95 transition-all flex items-center justify-center gap-2">
+            ENVIAR DATOS <span class="material-symbols-outlined text-sm">send</span>
+          </button>
+          <button type="button" id="emailBtn" onclick="sendEntryEmail()" class="bg-zinc-900 text-white px-10 py-4 rounded-xl font-black uppercase tracking-widest text-xs flex-1 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-[#0D47A1]">
+            ENVIAR CORREO <span class="material-symbols-outlined text-sm">mail</span>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- PANEL LATERAL -->
+    <section class="lg:col-span-4 space-y-6">
+
+      <!-- Meta del día -->
+      <div class="bg-[#0D47A1] rounded-[2rem] p-8 shadow-2xl border border-blue-800 animate-in relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-4 translate-x-4"></div>
+        <div class="flex justify-between items-start mb-6">
+          <div>
+            <p class="text-[10px] font-black text-blue-300 uppercase tracking-[0.2em] mb-1">Meta del Día</p>
+            <h3 id="meta-diaria-info" class="text-3xl font-black text-white tracking-tighter">$0.00</h3>
+          </div>
+          <div id="cumplimiento-badge" class="px-3 py-1 rounded-full bg-blue-900 text-[9px] font-black text-blue-300 uppercase tracking-widest transition-all duration-500">
+            0% OBJETIVO
+          </div>
+        </div>
+        <div class="space-y-3">
+          <div class="flex justify-between items-end">
+            <span class="text-[9px] font-black text-blue-300 uppercase tracking-widest">Progreso Actual</span>
+            <span id="progreso-texto" class="text-[10px] font-bold text-white">0%</span>
+          </div>
+          <div class="w-full bg-blue-900 h-2 rounded-full overflow-hidden">
+            <div id="budget-progress-bar" class="h-full bg-blue-300 transition-all duration-700 ease-out" style="width:0%"></div>
+          </div>
+        </div>
+        <p id="weight-caption" class="text-[9px] text-blue-400 mt-6 leading-relaxed uppercase font-bold tracking-tight">
+          * Meta ajustada al potencial de tráfico de este día.
+        </p>
+      </div>
+
+      <!-- Stock ICG vs LY -->
+      <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-blue-100">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center text-primary">
+            <span class="material-symbols-outlined">inventory_2</span>
+          </div>
+          <div>
+            <h4 class="text-sm font-black uppercase tracking-tighter">STOCK ICG VS LY</h4>
+          </div>
+        </div>
+        <div class="space-y-4">
+          <div class="flex items-end justify-between">
+            <div>
+              <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Stock ICG Actual</p>
+              <h3 id="stock-current-val" class="text-3xl font-black tracking-tighter text-zinc-900">0</h3>
+            </div>
+            <div class="text-right">
+              <p class="text-[10px] font-black uppercase tracking-widest text-zinc-400">Stock LY</p>
+              <h3 id="stock-ly-val" class="text-2xl font-black tracking-tighter text-zinc-500">0</h3>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-blue-50">
+            <div id="stock-comp-badge" class="inline-flex px-4 py-2 rounded-full bg-blue-50 text-blue-500 text-[11px] font-black uppercase tracking-widest">
+              0.0% VS LY
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </div>
+</div>

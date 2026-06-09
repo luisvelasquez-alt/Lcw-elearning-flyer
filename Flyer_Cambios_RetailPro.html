@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LCW Retail Pro · Mejoras Operativas</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @page { size: 900px 1270px; margin: 0; }
+    :root {
+      --primary: #1565C0;
+      --primary-dark: #0D47A1;
+      --primary-soft: #E3F2FD;
+      --surface: #F4F7FB;
+      --ink: #111827;
+      --muted: #64748B;
+      --border: #E2E8F0;
+      --green: #16A34A;
+      --red: #DC2626;
+      --amber: #D97706;
+    }
+    body {
+      width: 900px;
+      min-height: 1270px;
+      font-family: Inter, Arial, sans-serif;
+      background: #EAF0F7;
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+    .flyer {
+      width: 900px;
+      min-height: 1270px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .header {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      padding: 30px 42px 36px;
+      color: #fff;
+    }
+    .header::before {
+      content: "";
+      position: absolute;
+      width: 250px;
+      height: 250px;
+      border-radius: 999px;
+      right: -76px;
+      top: -72px;
+      background: rgba(255,255,255,.08);
+    }
+    .header::after {
+      content: "";
+      position: absolute;
+      width: 150px;
+      height: 150px;
+      border-radius: 999px;
+      left: 250px;
+      bottom: -62px;
+      background: rgba(255,255,255,.05);
+    }
+    .topbar, .hero, .body, .footer { position: relative; z-index: 1; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 30px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-weight: 900;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      font-size: 12px;
+    }
+    .logo {
+      display: grid;
+      place-items: center;
+      width: 52px;
+      height: 34px;
+      border: 2px solid rgba(255,255,255,.95);
+      border-radius: 4px;
+      color: #fff;
+      font-weight: 900;
+      letter-spacing: -.05em;
+      font-size: 17px;
+    }
+    .brand-line { width: 1px; height: 26px; background: rgba(255,255,255,.35); }
+    .badge {
+      border: 1px solid rgba(255,255,255,.32);
+      background: rgba(255,255,255,.15);
+      border-radius: 999px;
+      padding: 7px 16px;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 32px;
+    }
+    .eyebrow {
+      color: #90CAF9;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    h1 {
+      font-size: 47px;
+      line-height: 1.02;
+      letter-spacing: -.035em;
+      font-weight: 900;
+    }
+    h1 span { color: #90CAF9; }
+    .subtitle {
+      max-width: 560px;
+      color: rgba(255,255,255,.75);
+      font-size: 14px;
+      font-weight: 650;
+      line-height: 1.55;
+      margin-top: 12px;
+    }
+    .url-chip {
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.22);
+      background: rgba(255,255,255,.12);
+      border-radius: 999px;
+      padding: 10px 18px;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .body {
+      background: var(--surface);
+      padding: 34px 42px 36px;
+    }
+    .mockup {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 18px 40px rgba(21,101,192,.12);
+      margin-bottom: 28px;
+    }
+    .mock-nav {
+      height: 50px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      padding: 0 20px;
+      color: #fff;
+    }
+    .mock-logo {
+      width: 34px;
+      height: 22px;
+      border: 1.5px solid #fff;
+      border-radius: 3px;
+      display: grid;
+      place-items: center;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: -.05em;
+    }
+    .mock-title {
+      flex: 1;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+    .mock-tabs {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.56);
+    }
+    .mock-tabs span.active { color: #fff; border-bottom: 2px solid #fff; padding-bottom: 3px; }
+    .screen { padding: 20px; }
+    .screen-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 18px;
+    }
+    .screen-label {
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .18em;
+      color: var(--primary);
+      text-transform: uppercase;
+    }
+    .screen-title {
+      font-size: 25px;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: -.04em;
+      margin-top: 5px;
+    }
+    .screen-meta {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+    .sync-pill {
+      border: 1px solid #BBDEFB;
+      background: #EFF6FF;
+      border-radius: 999px;
+      padding: 8px 14px;
+      color: var(--primary);
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .top-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .top-card {
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 15px;
+      padding: 14px;
+      min-height: 92px;
+    }
+    .top-card .label {
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .top-card .store {
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: -.03em;
+      margin-top: 9px;
+    }
+    .top-card .metric {
+      color: var(--primary);
+      font-size: 20px;
+      font-weight: 900;
+      margin-top: 4px;
+    }
+    .panel-row {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 14px;
+    }
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .panel-title {
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--ink);
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #EEF2F7;
+      font-size: 10px;
+      text-align: left;
+    }
+    th {
+      color: var(--muted);
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    th .arrow { color: var(--primary); margin-left: 4px; }
+    td:last-child, th:last-child { text-align: right; }
+    .pos { color: var(--green); font-weight: 900; }
+    .neg { color: var(--red); font-weight: 900; }
+    .comment-box { padding: 15px; display: grid; gap: 10px; }
+    .comment {
+      border: 1px solid #DBEAFE;
+      background: #F8FBFF;
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .comment h4 {
+      font-size: 10px;
+      font-weight: 900;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      margin-bottom: 6px;
+    }
+    .comment p {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.45;
+      font-weight: 650;
+    }
+    .section-kicker {
+      color: var(--primary);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .section-title {
+      font-size: 25px;
+      font-weight: 900;
+      letter-spacing: -.04em;
+      margin-bottom: 18px;
+    }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .feature {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      min-height: 152px;
+      box-shadow: 0 8px 20px rgba(15,23,42,.04);
+    }
+    .feature-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .icon {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-weight: 900;
+      font-size: 14px;
+    }
+    .feature h3 {
+      font-size: 14px;
+      line-height: 1.15;
+      font-weight: 900;
+      letter-spacing: -.02em;
+    }
+    .feature p {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+      font-weight: 650;
+    }
+    .example {
+      margin-top: 11px;
+      border-radius: 12px;
+      background: #F8FAFC;
+      border: 1px solid #E5E7EB;
+      padding: 10px;
+      color: var(--ink);
+      font-size: 10px;
+      line-height: 1.35;
+      font-weight: 800;
+    }
+    .access {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 16px;
+      align-items: center;
+      border-radius: 22px;
+      padding: 20px 22px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: #fff;
+      margin-bottom: 20px;
+    }
+    .access-icon {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 15px;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.2);
+      font-weight: 900;
+      font-size: 18px;
+    }
+    .access-label {
+      color: #90CAF9;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    .access-title {
+      font-size: 17px;
+      line-height: 1.35;
+      font-weight: 900;
+      letter-spacing: -.02em;
+      margin-bottom: 10px;
+    }
+    .steps {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      color: rgba(255,255,255,.72);
+      font-size: 10px;
+      font-weight: 750;
+    }
+    .step {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .num {
+      display: grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: #fff;
+      color: var(--primary);
+      font-size: 9px;
+      font-weight: 900;
+    }
+    .note-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .note {
+      display: grid;
+      grid-template-columns: 30px 1fr;
+      gap: 10px;
+      align-items: start;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+    }
+    .note .note-icon {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: #F8FAFC;
+      color: var(--primary);
+      font-weight: 900;
+      font-size: 10px;
+    }
+    .note h4 {
+      font-size: 10.5px;
+      font-weight: 900;
+      margin-bottom: 4px;
+    }
+    .note p {
+      color: var(--muted);
+      font-size: 9px;
+      line-height: 1.4;
+      font-weight: 650;
+    }
+    .footer {
+      height: 68px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 42px;
+      background: #fff;
+      border-top: 1px solid var(--border);
+    }
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--ink);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .footer-logo {
+      width: 42px;
+      height: 27px;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--primary);
+      color: var(--primary);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: -.05em;
+    }
+    .footer-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .footer-pill {
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <main class="flyer">
+    <section class="header">
+      <div class="topbar">
+        <div class="brand">
+          <div class="logo">LCW</div>
+          <div class="brand-line"></div>
+          <span>LC Waikiki Retail Pro</span>
+        </div>
+        <div class="badge">+ Mejoras agregadas</div>
+      </div>
+      <div class="hero">
+        <div>
+          <p class="eyebrow">Ranking semanal · Correo nocturno · Albaranes ICG</p>
+          <h1>Más contexto<br><span>para decidir mejor</span></h1>
+          <p class="subtitle">Nuevas mejoras para leer el desempeño semanal con mayor precisión, ordenar el ranking, agregar comentarios operativos al correo nocturno y visualizar albaranes ICG en Despachos.</p>
+        </div>
+        <div class="url-chip">lcw-retail-pro.app</div>
+      </div>
+    </section>
+
+    <section class="body">
+      <div class="mockup">
+        <div class="mock-nav">
+          <div class="mock-logo">LCW</div>
+          <div class="mock-title">LC Waikiki Retail</div>
+          <div class="mock-tabs">
+            <span>Entrada</span>
+            <span class="active">Ranking</span>
+            <span>Análisis</span>
+            <span>Correo</span>
+          </div>
+        </div>
+        <div class="screen">
+          <div class="screen-head">
+            <div>
+              <p class="screen-label">Vista semanal</p>
+              <h2 class="screen-title">Ranking con lectura acumulada</h2>
+              <p class="screen-meta">Ordena columnas, revisa top performers y compara TY vs LY con el mismo corte semanal.</p>
+            </div>
+            <div class="sync-pill">Semana actual · WTD</div>
+          </div>
+
+          <div class="top-grid">
+            <div class="top-card">
+              <p class="label">Top conversión</p>
+              <p class="store">LCW Multiplaza</p>
+              <p class="metric">28.4%</p>
+            </div>
+            <div class="top-card">
+              <p class="label">Top UPT</p>
+              <p class="store">LCW Sambil</p>
+              <p class="metric">3.12</p>
+            </div>
+            <div class="top-card">
+              <p class="label">Top APT</p>
+              <p class="store">LCW Ágora</p>
+              <p class="metric">$42.80</p>
+            </div>
+          </div>
+
+          <div class="panel-row">
+            <div class="panel">
+              <div class="panel-title">
+                <span>Ranking semanal</span>
+                <span style="color:#94A3B8;">Headers ordenables</span>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tienda</th>
+                    <th>Ventas <span class="arrow">▼</span></th>
+                    <th>Comp V</th>
+                    <th>Unid.</th>
+                    <th>Comp U</th>
+                    <th>Tráfico</th>
+                    <th>Comp T</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>LCW Multiplaza</td>
+                    <td>$18,420</td>
+                    <td class="pos">+8.4%</td>
+                    <td>512</td>
+                    <td class="pos">+5.1%</td>
+                    <td>1,802</td>
+                    <td class="neg">-2.3%</td>
+                  </tr>
+                  <tr>
+                    <td>LCW Sambil</td>
+                    <td>$16,980</td>
+                    <td class="pos">+4.7%</td>
+                    <td>498</td>
+                    <td class="pos">+2.8%</td>
+                    <td>1,640</td>
+                    <td class="pos">+1.6%</td>
+                  </tr>
+                  <tr>
+                    <td>LCW Ágora</td>
+                    <td>$15,730</td>
+                    <td class="neg">-1.9%</td>
+                    <td>421</td>
+                    <td class="neg">-3.4%</td>
+                    <td>1,390</td>
+                    <td class="pos">+3.2%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="panel">
+              <div class="panel-title">
+                <span>Correo nocturno</span>
+                <span style="color:#94A3B8;">Comentarios</span>
+              </div>
+              <div class="comment-box">
+                <div class="comment">
+                  <h4>Comentario del día</h4>
+                  <p>Se agrega contexto operativo al correo nocturno para explicar variaciones, acciones tomadas o eventos que afectaron el resultado.</p>
+                </div>
+                <div class="comment">
+                  <h4>Seguimiento</h4>
+                  <p>El equipo puede dejar observaciones más claras antes del cierre, facilitando la lectura del reporte al día siguiente.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="section-kicker">Cambios incluidos</p>
+      <h2 class="section-title">Qué mejora en la operación</h2>
+
+      <div class="features">
+        <article class="feature">
+          <div class="feature-head">
+            <div class="icon">01</div>
+            <h3>Comentarios para el correo nocturno</h3>
+          </div>
+          <p>Ahora se pueden agregar comentarios operativos que acompañan el correo nocturno, para que el cierre diario no viaje solo con números.</p>
+          <div class="example">Ejemplo: lluvia, tráfico bajo del mall, inventario pendiente, campaña activa o acción correctiva ejecutada.</div>
+        </article>
+
+        <article class="feature">
+          <div class="feature-head">
+            <div class="icon">02</div>
+            <h3>Top performers del ranking semanal</h3>
+          </div>
+          <p>El ranking suma bloques destacados para identificar rápidamente la tienda líder en Conversión, UPT y APT.</p>
+          <div class="example">Conversión: eficiencia en piso · UPT: unidades por ticket · APT: venta promedio por ticket.</div>
+        </article>
+
+        <article class="feature">
+          <div class="feature-head">
+            <div class="icon">03</div>
+            <h3>Headers ordenables</h3>
+          </div>
+          <p>Las columnas del ranking se pueden ordenar de mayor a menor o de menor a mayor desde el encabezado.</p>
+          <div class="example">Ordena por Ventas, Comp V, Unidades, Comp U, Tráfico, Comp Tráfico, UPT, APT, AUR o Conversión.</div>
+        </article>
+
+        <article class="feature">
+          <div class="feature-head">
+            <div class="icon">04</div>
+            <h3>Comps acumulados TY vs LY</h3>
+          </div>
+          <p>Los comps de Ventas, Unidades y Tráfico ahora comparan el acumulado de la semana contra el mismo acumulado del año pasado.</p>
+          <div class="example">Si va 1 día de ventas en la semana, el % se calcula contra el día 1 de esa misma semana LY.</div>
+        </article>
+      </div>
+
+      <div class="access">
+        <div class="access-icon">WTD</div>
+        <div>
+          <p class="access-label">Albaranes ICG en Despachos</p>
+          <p class="access-title">Los albaranes ICG ahora se muestran asociados a cada invoice, junto con cajas, unidades, status y fecha de llegada.</p>
+          <div class="steps">
+            <span class="step"><span class="num">5</span>Valida albaranes ICG</span>
+            <span>→</span>
+            <span class="step"><span class="num">6</span>Revisa invoice</span>
+            <span>→</span>
+            <span class="step"><span class="num">7</span>Confirma recepción</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="note-row">
+        <div class="note">
+          <div class="note-icon">LY</div>
+          <div>
+            <h4>Comparación justa</h4>
+            <p>El TY y LY se miden con el mismo corte acumulado de semana.</p>
+          </div>
+        </div>
+        <div class="note">
+          <div class="note-icon">↕</div>
+          <div>
+            <h4>Ranking flexible</h4>
+            <p>Cada encabezado permite cambiar el foco del análisis en segundos.</p>
+          </div>
+        </div>
+        <div class="note">
+          <div class="note-icon">TXT</div>
+          <div>
+            <h4>Más contexto</h4>
+            <p>Los comentarios ayudan a explicar el resultado del día con claridad.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-brand">
+        <div class="footer-logo">LCW</div>
+        <span>LCW Retail Pro · Grupo David</span>
+      </div>
+      <div class="footer-meta">
+        <span class="footer-pill">Uso interno</span>
+        <span>Mayo 2026</span>
+      </div>
+    </footer>
+  </main>
+</body>
+</html>

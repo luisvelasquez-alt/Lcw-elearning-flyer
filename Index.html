@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Retail Pro | Management System</title>
+  <meta name="application-name" content="Retail Pro"/>
+  <meta name="apple-mobile-web-app-title" content="Retail Pro"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="theme-color" content="#1565C0"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="https://res.cloudinary.com/dowuskauz/image/upload/v1778940270/lc-waikiki-apple-touch-icon_rophvw.png"/>
+  <link rel="icon" type="image/png" sizes="192x192" href="https://res.cloudinary.com/dowuskauz/image/upload/w_192,h_192,c_fill/v1778940270/lc-waikiki-apple-touch-icon_rophvw.png"/>
+  <link rel="icon" type="image/png" sizes="512x512" href="https://res.cloudinary.com/dowuskauz/image/upload/w_512,h_512,c_fill/v1778940270/lc-waikiki-apple-touch-icon_rophvw.png"/>
+  <link rel="shortcut icon" href="https://res.cloudinary.com/dowuskauz/image/upload/w_192,h_192,c_fill/v1778940270/lc-waikiki-apple-touch-icon_rophvw.png"/>
+  <link rel="manifest" href='data:application/manifest+json,%7B%22name%22%3A%22Retail%20Pro%22%2C%22short_name%22%3A%22Retail%20Pro%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231565C0%22%2C%22theme_color%22%3A%22%231565C0%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fres.cloudinary.com%2Fdowuskauz%2Fimage%2Fupload%2Fv1778940270%2Flc-waikiki-apple-touch-icon_rophvw.png%22%2C%22sizes%22%3A%22180x180%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fres.cloudinary.com%2Fdowuskauz%2Fimage%2Fupload%2Fw_192%2Ch_192%2Cc_fill%2Fv1778940270%2Flc-waikiki-apple-touch-icon_rophvw.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fres.cloudinary.com%2Fdowuskauz%2Fimage%2Fupload%2Fw_512%2Ch_512%2Cc_fill%2Fv1778940270%2Flc-waikiki-apple-touch-icon_rophvw.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%22%7D%5D%7D'/>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+  <?!= include('Styles'); ?>
+</head>
+
+<body class="bg-surface font-body text-on-surface antialiased selection:bg-primary selection:text-white">
+
+  <div id="loader" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.75); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center; flex-direction:column;">
+    <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-[#1565C0]"></div>
+    <p class="mt-4 text-[10px] font-black tracking-[0.2em] text-zinc-600 uppercase">Procesando Datos...</p>
+  </div>
+
+  <header id="main-header" class="fixed top-0 w-full z-50 bg-[#0D47A1] shadow-lg" style="display:none;">
+    <div class="flex items-center justify-between px-6 h-16 w-full">
+      <div class="flex min-w-0 items-center">
+        <img src="https://i.imgur.com/RZmGChq.png" alt="LC Waikiki" class="h-7 w-auto object-contain brightness-0 invert">
+        <span class="ml-3 hidden text-[11px] font-black uppercase tracking-widest text-white/80 sm:inline">Retail Pro</span>
+      </div>
+
+      <div class="flex items-center gap-6">
+        <div id="desktop-nav" class="hidden md:flex gap-8 items-center">
+          <button onclick="loadScreen('Admin')"       class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">Ranking</button>
+          <button onclick="loadScreen('Entry')"       class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">Entrada</button>
+          <button onclick="loadScreen('Budget')"      class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">Budget</button>
+          <button onclick="loadScreen('Analysis')"    class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">Análisis</button>
+          <button onclick="loadScreen('Comparativo')" class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">Comparativa</button>
+          <button onclick="loadScreen('Rendimiento')"  id="nav-rendimiento"   class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">Rendimiento</button>
+          <button onclick="loadScreen('Despachos')"  id="nav-despachos"   class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">Despachos</button>
+          <button onclick="loadScreen('Elearnings')"   id="nav-elearnings"    class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">E-learnings</button>
+          <button onclick="loadScreen('RetailStore')" id="nav-retailstore"   class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">Retail Store</button>
+          <button onclick="openManual()"              class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest flex items-center gap-1 cursor-pointer">
+            <span class="material-symbols-outlined text-sm">menu_book</span>Manual
+          </button>
+        </div>
+
+        <div class="relative group">
+          <button class="flex items-center cursor-pointer py-1">
+            <span class="material-symbols-outlined text-white/80 group-hover:text-white transition-colors" style="font-size:28px;">account_circle</span>
+          </button>
+          <div class="absolute right-0 mt-1 w-48 bg-white border border-blue-100 shadow-2xl rounded-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100]">
+            <div class="p-4 border-b border-zinc-100">
+              <p class="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none mb-1">Tienda Activa</p>
+              <p id="navStoreName" class="text-[11px] font-bold text-zinc-800 truncate">Cargando...</p>
+            </div>
+            <button onclick="handleLogout()" class="w-full flex items-center gap-2 px-4 py-3 text-[10px] font-black text-red-600 hover:bg-red-50 rounded-b-2xl transition-colors">
+              <span class="material-symbols-outlined text-sm">logout</span>
+              CERRAR SESIÓN
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="app-content" class="pt-24 pb-32 px-6 max-w-7xl mx-auto transition-all duration-300">
+    <div class="flex flex-col items-center justify-center min-h-[60vh]">
+      <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1565C0]"></div>
+      <p class="mt-4 text-[10px] font-black tracking-[0.2em] text-zinc-400 uppercase">Sincronizando Sistema...</p>
+    </div>
+  </main>
+
+  <nav id="mobile-nav" class="md:hidden fixed bottom-0 left-0 w-full flex items-center px-3 pb-6 pt-2 bg-white/95 backdrop-blur-xl z-50 border-t border-[#e3eaf4] shadow-lg rounded-t-2xl" style="display:none;">
+    <div id="mobile-more-menu" class="hidden absolute right-4 bottom-[calc(100%+0.75rem)] w-56 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl">
+      <button onclick="loadScreen('Rendimiento')" id="mobile-nav-rendimiento" class="flex w-full items-center gap-3 px-4 py-3 text-left text-zinc-600 active:bg-blue-50">
+        <span class="material-symbols-outlined text-[#1565C0]">monitoring</span>
+        <span class="text-[10px] font-black uppercase tracking-wide">Rendimiento</span>
+      </button>
+      <button onclick="loadScreen('Despachos')" id="mobile-nav-despachos" class="flex w-full items-center gap-3 border-t border-zinc-100 px-4 py-3 text-left text-zinc-600 active:bg-blue-50">
+        <span class="material-symbols-outlined text-[#1565C0]">inventory_2</span>
+        <span class="text-[10px] font-black uppercase tracking-wide">Despachos</span>
+      </button>
+      <button onclick="loadScreen('Elearnings')" id="mobile-nav-elearnings" class="flex w-full items-center gap-3 border-t border-zinc-100 px-4 py-3 text-left text-zinc-600 active:bg-blue-50">
+        <span class="material-symbols-outlined text-[#1565C0]">school</span>
+        <span class="text-[10px] font-black uppercase tracking-wide">E-learning</span>
+      </button>
+      <button onclick="loadScreen('RetailStore')" id="mobile-nav-retailstore" class="flex w-full items-center gap-3 border-t border-zinc-100 px-4 py-3 text-left text-zinc-600 active:bg-blue-50">
+        <span class="material-symbols-outlined text-[#1565C0]">store</span>
+        <span class="text-[10px] font-black uppercase tracking-wide">Retail Store</span>
+      </button>
+    </div>
+    <button onclick="loadScreen('Entry')"       class="flex flex-1 min-w-0 flex-col items-center justify-center text-zinc-500 py-2 active:scale-90 transition-transform">
+      <span class="material-symbols-outlined">edit_note</span>
+      <span class="text-[8px] font-black uppercase mt-1 leading-none">Entrada</span>
+    </button>
+    <button onclick="loadScreen('Budget')"      class="flex flex-1 min-w-0 flex-col items-center justify-center text-zinc-500 py-2 active:scale-90 transition-transform">
+      <span class="material-symbols-outlined">payments</span>
+      <span class="text-[8px] font-black uppercase mt-1 leading-none">Budget</span>
+    </button>
+    <button onclick="loadScreen('Analysis')"    class="flex flex-1 min-w-0 flex-col items-center justify-center text-zinc-500 py-2 active:scale-90 transition-transform">
+      <span class="material-symbols-outlined">analytics</span>
+      <span class="text-[8px] font-black uppercase mt-1 leading-none">Análisis</span>
+    </button>
+    <button onclick="loadScreen('Comparativo')" class="flex flex-1 min-w-0 flex-col items-center justify-center text-zinc-500 py-2 active:scale-90 transition-transform">
+      <span class="material-symbols-outlined">compare_arrows</span>
+      <span class="text-[8px] font-black uppercase mt-1 leading-none">Compar.</span>
+    </button>
+    <button onclick="openManual()"              class="flex flex-1 min-w-0 flex-col items-center justify-center text-zinc-500 py-2 active:scale-90 transition-transform cursor-pointer">
+      <span class="material-symbols-outlined">menu_book</span>
+      <span class="text-[8px] font-black uppercase mt-1 leading-none">Manual</span>
+    </button>
+    <button onclick="toggleMobileMoreMenu(event)" aria-expanded="false" aria-controls="mobile-more-menu" id="mobile-more-button" class="flex flex-1 min-w-0 flex-col items-center justify-center text-zinc-500 py-2 active:scale-90 transition-transform">
+      <span class="material-symbols-outlined">more_horiz</span>
+      <span class="text-[8px] font-black uppercase mt-1 leading-none">Más</span>
+    </button>
+    <button onclick="handleLogout()"            class="flex flex-1 min-w-0 flex-col items-center justify-center text-red-400 py-2 active:scale-90 transition-transform">
+      <span class="material-symbols-outlined">logout</span>
+      <span class="text-[8px] font-black uppercase mt-1 leading-none">Salir</span>
+    </button>
+  </nav>
+
+  <!-- Modal confirmación recepción despachos — fuera de #app-content para evitar stacking context -->
+  <div id="despModal" class="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+       style="display:none;">
+    <div class="bg-white rounded-[2rem] shadow-2xl p-8 w-full max-w-sm mx-4">
+      <div class="flex items-center gap-3 mb-6">
+        <span class="material-symbols-outlined text-[#1565C0] text-3xl">task_alt</span>
+        <div>
+          <p class="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Confirmar Recepción</p>
+          <p id="modalInvoiceLabel" class="text-base font-black text-zinc-900 tracking-tight">Invoice #</p>
+        </div>
+      </div>
+      <label class="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Fecha de Recepción</label>
+      <input type="date" id="modalFecha"
+        class="w-full border border-blue-200 rounded-xl px-4 py-3 text-sm font-bold text-zinc-800 focus:ring-2 focus:ring-[#1565C0] focus:outline-none mb-6"/>
+      <div class="flex gap-3">
+        <button onclick="closeDespModal()"
+          class="flex-1 py-3 rounded-xl border border-zinc-200 text-zinc-600 font-black text-xs uppercase tracking-widest hover:bg-zinc-50 transition-colors">
+          Cancelar
+        </button>
+        <button onclick="confirmDespRecibido()"
+          class="flex-1 py-3 rounded-xl bg-[#1565C0] text-white font-black text-xs uppercase tracking-widest hover:bg-[#0D47A1] transition-colors">
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <?!= include('JavaScript'); ?>
+</body>
+</html>

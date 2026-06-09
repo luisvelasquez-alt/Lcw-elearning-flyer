@@ -1,0 +1,105 @@
+<div id="section-comparativo" class="animate-in fade-in duration-700">
+  <div class="mb-8">
+    <span class="text-[#1565C0] font-black uppercase tracking-[0.2em] text-xs">Análisis Avanzado</span>
+    <h2 class="text-2xl font-black text-zinc-800 uppercase tracking-tighter mt-1">Comparativa Personalizada</h2>
+    <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Contraste de rangos de fechas libres · mismo año o año anterior</p>
+  </div>
+
+  <!-- Filtro de tiendas (solo admin) -->
+  <div id="adminStoreFilterContainer" class="hidden mb-6 bg-blue-50 p-6 rounded-[2rem] border border-blue-100">
+    <div class="flex items-center justify-between mb-4">
+      <p class="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Seleccionar Ubicaciones</p>
+      <div class="flex gap-3">
+        <button onclick="toggleAllStores(true)"  class="text-[9px] font-black text-[#1565C0] uppercase tracking-widest hover:underline">Seleccionar Todas</button>
+        <span class="text-zinc-300">|</span>
+        <button onclick="toggleAllStores(false)" class="text-[9px] font-black text-zinc-400 uppercase tracking-widest hover:underline">Limpiar</button>
+      </div>
+    </div>
+    <!-- Filtro rápido por país -->
+    <div class="flex flex-wrap gap-2 mb-4">
+      <button onclick="selectByCountry('Costa Rica')"         class="px-3 py-1 rounded-full bg-white border border-blue-100 text-[9px] font-black text-zinc-600 hover:border-primary hover:text-primary transition-all">🇨🇷 Costa Rica</button>
+      <button onclick="selectByCountry('Curacao')"            class="px-3 py-1 rounded-full bg-white border border-blue-100 text-[9px] font-black text-zinc-600 hover:border-primary hover:text-primary transition-all">🇨🇼 Curacao</button>
+      <button onclick="selectByCountry('Dominican Republic')" class="px-3 py-1 rounded-full bg-white border border-blue-100 text-[9px] font-black text-zinc-600 hover:border-primary hover:text-primary transition-all">🇩🇴 Dominican Rep.</button>
+      <button onclick="selectByCountry('El Salvador')"        class="px-3 py-1 rounded-full bg-white border border-blue-100 text-[9px] font-black text-zinc-600 hover:border-primary hover:text-primary transition-all">🇸🇻 El Salvador</button>
+      <button onclick="selectByCountry('Guatemala')"          class="px-3 py-1 rounded-full bg-white border border-blue-100 text-[9px] font-black text-zinc-600 hover:border-primary hover:text-primary transition-all">🇬🇹 Guatemala</button>
+      <button onclick="selectByCountry('Panamá')"             class="px-3 py-1 rounded-full bg-white border border-blue-100 text-[9px] font-black text-zinc-600 hover:border-primary hover:text-primary transition-all">🇵🇦 Panamá</button>
+      <button onclick="selectByCountry('Venezuela')"          class="px-3 py-1 rounded-full bg-white border border-blue-100 text-[9px] font-black text-zinc-600 hover:border-primary hover:text-primary transition-all">🇻🇪 Venezuela</button>
+    </div>
+    <div id="storeCheckboxGroup" class="flex flex-wrap gap-2">
+      <p class="text-[10px] text-zinc-400 italic">Cargando tiendas...</p>
+    </div>
+  </div>
+
+  <!-- Selector de rangos -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8 bg-white p-6 rounded-3xl border border-blue-100 shadow-sm">
+    <div class="space-y-2">
+      <p class="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Rango Este Año (TY)</p>
+      <div class="flex gap-2">
+        <input type="date" id="tyStart" class="flex-1 bg-blue-50 border-none rounded-xl text-xs font-bold p-3 focus:ring-2 focus:ring-primary">
+        <input type="date" id="tyEnd"   class="flex-1 bg-blue-50 border-none rounded-xl text-xs font-bold p-3 focus:ring-2 focus:ring-primary">
+      </div>
+    </div>
+    <div class="space-y-2">
+      <p class="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Rango Comparativo (LY)</p>
+      <div class="flex gap-2">
+        <input type="date" id="lyStart" class="flex-1 bg-blue-50 border-none rounded-xl text-xs font-bold p-3 focus:ring-2 focus:ring-zinc-800">
+        <input type="date" id="lyEnd"   class="flex-1 bg-blue-50 border-none rounded-xl text-xs font-bold p-3 focus:ring-2 focus:ring-zinc-800">
+      </div>
+    </div>
+    <div class="flex items-end">
+      <button id="btnCalcularComp" onclick="fetchCustomComparison()" class="w-full bg-[#0D47A1] text-white h-[46px] rounded-xl font-black text-[11px] tracking-widest hover:bg-[#1565C0] transition-all flex items-center justify-center gap-2 uppercase">
+        <span class="material-symbols-outlined text-lg">analytics</span>
+        Calcular Comparativa
+      </button>
+    </div>
+  </div>
+
+  <!-- Resultados generales -->
+  <div id="customCompResults" class="w-full">
+    <div class="col-span-full py-20 text-center">
+      <span class="material-symbols-outlined text-blue-200" style="font-size:48px;">date_range</span>
+      <p class="text-zinc-400 text-[10px] font-black uppercase tracking-widest mt-4">Selecciona rangos para comparar</p>
+    </div>
+  </div>
+
+  <!-- Desglose departamentos -->
+  <div id="deptCustomCompContainer" class="hidden mt-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="h-8 w-1 bg-primary rounded-full"></div>
+      <h3 class="text-lg font-black uppercase tracking-tight text-zinc-800">Desglose por Departamento</h3>
+    </div>
+    <div class="overflow-x-auto rounded-[2rem] border border-blue-100 shadow-sm bg-white">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="bg-[#0D47A1] text-[10px] font-black uppercase tracking-widest text-blue-200">
+            <th class="px-6 py-5">Departamento</th>
+            <th class="px-6 py-5 text-right">Venta TY</th>
+            <th class="px-6 py-5 text-right">Venta Comp.</th>
+            <th class="px-6 py-5 text-center">Comp %</th>
+          </tr>
+        </thead>
+        <tbody id="deptCustomCompBody" class="text-xs font-bold text-zinc-600">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+function selectByCountry(country) {
+  const COUNTRY_MAP = {
+    'CR01': 'Costa Rica',
+    'CW01': 'Curacao',
+    'DO01': 'Dominican Republic', 'DO02': 'Dominican Republic',
+    'SV01': 'El Salvador',
+    'GT01': 'Guatemala',
+    'PA01': 'Panamá', 'PA02': 'Panamá',
+    'VE01': 'Venezuela', 'VE02': 'Venezuela', 'VE03': 'Venezuela',
+    'VE04': 'Venezuela', 'VE05': 'Venezuela', 'VE06': 'Venezuela', 'VE100': 'Venezuela'
+  };
+  const checks = document.getElementsByName('storeCheck');
+  checks.forEach(c => {
+    c.checked = (COUNTRY_MAP[c.value] === country);
+  });
+}
+</script>
+</div>

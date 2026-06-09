@@ -1,0 +1,3727 @@
+<script>
+// ─── SECUENCIA DE FETCH (evita respuestas obsoletas) ─────────────────────────
+let _entryFetchSeq  = 0;
+let _weeklyFetchSeq = 0;
+
+// ─── MAPA DE PAÍSES ───────────────────────────────────────────────────────────
+const LCW_COUNTRY_MAP = {
+  'CR01': 'Costa Rica',
+  'CW01': 'Curacao',
+  'DO01': 'Dominican Republic', 'DO02': 'Dominican Republic',
+  'SV01': 'El Salvador',
+  'GT01': 'Guatemala',
+  'PA01': 'Panamá', 'PA02': 'Panamá',
+  'VE01': 'Venezuela', 'VE02': 'Venezuela', 'VE03': 'Venezuela',
+  'VE04': 'Venezuela', 'VE05': 'Venezuela', 'VE06': 'Venezuela', 'VE100': 'Venezuela'
+};
+
+const COUNTRY_FLAGS = {
+  'Costa Rica': '🇨🇷', 'Curacao': '🇨🇼', 'Dominican Republic': '🇩🇴',
+  'El Salvador': '🇸🇻', 'Guatemala': '🇬🇹', 'Panamá': '🇵🇦', 'Venezuela': '🇻🇪'
+};
+
+const LCW_COUNTRY_ALIASES = {
+  'COSTA RICA': 'Costa Rica',
+  'CURACAO': 'Curacao',
+  'CURAZAO': 'Curacao',
+  'DOMINICAN REPUBLIC': 'Dominican Republic',
+  'REPUBLICA DOMINICANA': 'Dominican Republic',
+  'REPÚBLICA DOMINICANA': 'Dominican Republic',
+  'EL SALVADOR': 'El Salvador',
+  'GUATEMALA': 'Guatemala',
+  'PANAMA': 'Panamá',
+  'PANAMÁ': 'Panamá',
+  'VENEZUELA': 'Venezuela'
+};
+
+function normalizeCountryName(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const upper = raw.toUpperCase();
+  if (LCW_COUNTRY_ALIASES[upper] || LCW_COUNTRY_MAP[upper]) return LCW_COUNTRY_ALIASES[upper] || LCW_COUNTRY_MAP[upper];
+  if (/\bVE\b|VENEZUELA/.test(upper)) return 'Venezuela';
+  if (/\bPA\b|PANAMA|PANAMÁ/.test(upper)) return 'Panamá';
+  if (/\bCR\b|COSTA RICA/.test(upper)) return 'Costa Rica';
+  if (/\bCW\b|CURACAO|CURAZAO/.test(upper)) return 'Curacao';
+  if (/\bDO\b|DOMINICAN|DOMINICANA/.test(upper)) return 'Dominican Republic';
+  if (/\bSV\b|EL SALVADOR/.test(upper)) return 'El Salvador';
+  if (/\bGT\b|GUATEMALA/.test(upper)) return 'Guatemala';
+  return raw;
+}
+
+function getRetailCountry() {
+  return normalizeCountryName(sessionStorage.getItem('userCountry') || '');
+}
+
+function getStoreCountry(storeName) {
+  return normalizeCountryName(LCW_COUNTRY_MAP[String(storeName || '').trim().toUpperCase()] || '');
+}
+
+function isRetailStoreAllowed(storeName) {
+  const role = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+  if (role !== 'RETAIL') return true;
+  return getStoreCountry(storeName) === getRetailCountry();
+}
+
+function scopeStoresForCurrentUser(stores) {
+  const list = Array.isArray(stores) ? stores : [];
+  const role = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+  return role === 'RETAIL' ? list.filter(isRetailStoreAllowed) : list;
+}
+
+function loadStoresForCurrentUser(handler) {
+  const role = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+  const wrappedHandler = stores => handler(scopeStoresForCurrentUser(stores));
+  if (role === 'RETAIL') {
+    google.script.run.withSuccessHandler(wrappedHandler).getStoreNamesByCountry(getRetailCountry());
+  } else {
+    google.script.run.withSuccessHandler(wrappedHandler).getActiveStoreNames();
+  }
+}
+
+// ─── NAVEGADOR GLOBAL ─────────────────────────────────────────────────────────
+function loadScreen(pageName) {
+  const container  = document.getElementById('app-content');
+  const header     = document.getElementById('main-header');
+  const mobileNav  = document.getElementById('mobile-nav');
+  const role       = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+
+  closeMobileMoreMenu();
+  container.style.opacity = '0.3';
+
+  let targetPage = pageName;
+  if (pageName === 'Budget' && role === 'ADMIN') targetPage = 'AdminBudget';
+
+  google.script.run.withSuccessHandler(function(html) {
+    container.innerHTML = html;
+    container.style.opacity = '1';
+
+    if (pageName === 'Login') {
+      header.style.display  = 'none';
+      mobileNav.style.display = 'none';
+      setTimeout(() => { if (typeof initLogin === 'function') initLogin(); }, 100);
+    } else {
+      header.style.display  = 'block';
+      mobileNav.style.display = 'flex';
+      const store = sessionStorage.getItem('activeStore');
+      if (store && document.getElementById('navStoreName'))
+        document.getElementById('navStoreName').innerText = store;
+
+    }
+
+    if (targetPage === 'Budget'       && typeof initBudget       === 'function') initBudget();
+    if (targetPage === 'AdminBudget'  && typeof initAdminBudget  === 'function') initAdminBudget();
+    if (pageName   === 'Entry'        && typeof initEntry        === 'function') initEntry();
+    if (pageName   === 'Analysis'     && typeof initAnalysis     === 'function') initAnalysis();
+    if (pageName   === 'Admin'        && typeof initAdmin        === 'function') initAdmin();
+    if (pageName   === 'Comparativo'  && typeof initComparativo  === 'function') initComparativo();
+    if (pageName   === 'Rendimiento'  && typeof initFullness     === 'function') initFullness();
+    if (pageName   === 'Despachos'    && typeof initDespachos    === 'function') initDespachos();
+    if (pageName   === 'Elearnings'   && typeof initRendimiento  === 'function') initRendimiento();
+    if (pageName   === 'RetailStore'  && typeof initRetailStore  === 'function') initRetailStore();
+  }).getHtmlContent(targetPage);
+}
+
+function toggleMobileMoreMenu(event) {
+  if (event) event.stopPropagation();
+  const menu = document.getElementById('mobile-more-menu');
+  const button = document.getElementById('mobile-more-button');
+  if (!menu) return;
+  const isOpen = !menu.classList.contains('hidden');
+  menu.classList.toggle('hidden', isOpen);
+  if (button) button.setAttribute('aria-expanded', String(!isOpen));
+}
+
+function closeMobileMoreMenu() {
+  const menu = document.getElementById('mobile-more-menu');
+  const button = document.getElementById('mobile-more-button');
+  if (menu) menu.classList.add('hidden');
+  if (button) button.setAttribute('aria-expanded', 'false');
+}
+
+document.addEventListener('click', function(event) {
+  const mobileNav = document.getElementById('mobile-nav');
+  const menu = document.getElementById('mobile-more-menu');
+  if (!mobileNav || !menu || menu.classList.contains('hidden')) return;
+  if (!mobileNav.contains(event.target)) closeMobileMoreMenu();
+});
+
+function openManual() {
+  closeMobileMoreMenu();
+  google.script.run.withSuccessHandler(function(html) {
+    const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
+    window.open(URL.createObjectURL(blob), '_blank');
+  }).getManualHtml();
+}
+
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
+function initLogin() {
+  const select = document.getElementById('storeSelect');
+  if (!select) return;
+  select.innerHTML = '<option value="" disabled selected>Cargando ubicaciones...</option>';
+  google.script.run.withSuccessHandler(function(stores) {
+    if (stores && stores.length > 0) {
+      select.innerHTML = '<option value="" disabled selected>Seleccione Ubicación</option>';
+      stores.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = opt.text = name;
+        select.appendChild(opt);
+      });
+    } else {
+      select.innerHTML = '<option value="" disabled>No se encontraron tiendas</option>';
+    }
+  }).getLoginStoreNames();
+}
+
+function handleLogin() {
+  const store = document.getElementById('storeSelect').value;
+  const pass  = document.getElementById('passwordInput').value;
+  const btn   = document.getElementById('loginBtn');
+  if (!store || !pass) { alert('⚠️ Por favor, selecciona una tienda e ingresa la contraseña.'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span>⏳</span> VERIFICANDO...';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (res.success) {
+        const role = String(res.role || '').trim().toUpperCase();
+        sessionStorage.setItem('activeStore', res.store);
+        sessionStorage.setItem('userRole', role);
+        if (role === 'RETAIL') sessionStorage.setItem('userCountry', normalizeCountryName(res.country || res.store));
+        loadScreen((role === 'ADMIN' || role === 'RETAIL') ? 'Admin' : 'Entry');
+      } else {
+        alert('❌ Error: ' + res.message);
+        btn.disabled = false;
+        btn.innerHTML = 'AUTENTICAR SISTEMA <span class="material-symbols-outlined text-sm">verified_user</span>';
+      }
+    })
+    .withFailureHandler(function(err) {
+      alert('Error crítico de conexión.');
+      btn.disabled = false;
+      btn.innerHTML = 'AUTENTICAR SISTEMA';
+    })
+    .authenticateUser(store, pass);
+}
+
+function handleLogout() { sessionStorage.clear(); loadScreen('Login'); }
+
+// ─── ENTRY ────────────────────────────────────────────────────────────────────
+function initEntry() {
+  const store = sessionStorage.getItem('activeStore');
+  const role  = (sessionStorage.getItem('userRole') || '').toUpperCase();
+  if (!store) { loadScreen('Login'); return; }
+
+  const titulo = document.getElementById('displayStoreName');
+  if (titulo) titulo.innerText = store;
+
+  const dateInput = document.getElementById('inputDate');
+  if (dateInput && !dateInput.value) {
+    const today  = new Date();
+    const offset = today.getTimezoneOffset();
+    dateInput.value = new Date(today.getTime() - offset * 60000).toISOString().split('T')[0];
+  }
+
+  if (role === 'ADMIN' || role === 'RETAIL') {
+    const switcher = document.getElementById('adminStoreSwitcher');
+    const select   = document.getElementById('adminEntryStoreSelect');
+    if (switcher) switcher.classList.remove('hidden');
+    if (select && select.options.length <= 1) {
+      const storeHandler = function(stores) {
+        select.innerHTML = '';
+        let matched = false;
+        stores.forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = opt.text = name;
+          if (name === store) { opt.selected = true; matched = true; }
+          select.appendChild(opt);
+        });
+        // Si activeStore no es una tienda real, auto-selecciona la primera
+        const activeForFetch = matched ? store : stores[0];
+        if (!matched && stores.length > 0) select.value = stores[0];
+        if (activeForFetch) {
+          sessionStorage.setItem('activeStore', activeForFetch);
+          const titulo = document.getElementById('displayStoreName');
+          if (titulo) titulo.innerText = activeForFetch;
+          fetchStoreData();
+        }
+      };
+      loadStoresForCurrentUser(storeHandler);
+    }
+  } else {
+    setTimeout(() => fetchStoreData(), 300);
+  }
+
+  // Drag & drop sobre el área de upload
+  const dropZone = document.querySelector('[onclick="document.getElementById(\'fileInput\').click()"]');
+  const fileInput = document.getElementById('fileInput');
+  if (dropZone && fileInput) {
+    dropZone.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', function(e) {
+      if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over');
+    });
+    dropZone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const dt = e.dataTransfer;
+      if (!dt || !dt.files || dt.files.length === 0) return;
+      const newInput = Object.create(fileInput);
+      Object.defineProperty(newInput, 'files', { value: dt.files });
+      handleFileSelect(newInput);
+    });
+  }
+}
+
+function switchStoreAsAdmin(newStore) {
+  if (!isRetailStoreAllowed(newStore)) return alert('Esta ubicación no pertenece a tu país asignado.');
+  sessionStorage.setItem('activeStore', newStore);
+  const titulo = document.getElementById('displayStoreName');
+  if (titulo) titulo.innerText = newStore;
+  const c = document.getElementById('entry-container');
+  if (c) c.style.opacity = '0.4';
+  fetchStoreData();
+  setTimeout(() => { if (c) c.style.opacity = '1'; }, 300);
+}
+
+function fetchStoreData() {
+  const store     = sessionStorage.getItem('activeStore');
+  const dateInput = document.getElementById('inputDate');
+  if (!store || !dateInput.value) return;
+
+  const seq = ++_entryFetchSeq;
+  const loadingBar = document.getElementById('entryLoadingBar');
+  if (loadingBar) loadingBar.classList.remove('hidden');
+
+  google.script.run
+    .withSuccessHandler(function(data) {
+      if (seq !== _entryFetchSeq) return;
+      if (loadingBar) loadingBar.classList.add('hidden');
+      if (!data) return;
+
+      window.currentBudget = data.budget || {};
+      window.lyRawData     = data.ly     || { ventas: 0, unidades: 0, tickets: 0, trafico: 0, stockICG: 0, stockRS: 0 };
+      window.deptLY        = data.lyDept || { bg: 0, bu: 0, ck: 0, cu: 0, st: 0 };
+
+      // LY reference blocks
+      if (document.getElementById('lyVentas'))   document.getElementById('lyVentas').innerText   = '$' + Math.round(data.ly?.ventas   || 0).toLocaleString();
+      if (document.getElementById('lyUnidades')) document.getElementById('lyUnidades').innerText = (data.ly?.unidades || 0).toLocaleString();
+      if (document.getElementById('lyTickets'))  document.getElementById('lyTickets').innerText  = (data.ly?.tickets  || 0).toLocaleString();
+      if (document.getElementById('lyTrafico'))  document.getElementById('lyTrafico').innerText  = (data.ly?.trafico  || 0).toLocaleString();
+
+      // Dept LY reference
+      const dFmt = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+      if (document.getElementById('lyBg')) document.getElementById('lyBg').innerText = '$' + (window.deptLY.bg || 0).toLocaleString(undefined, dFmt);
+      if (document.getElementById('lyBu')) document.getElementById('lyBu').innerText = '$' + (window.deptLY.bu || 0).toLocaleString(undefined, dFmt);
+      if (document.getElementById('lyCk')) document.getElementById('lyCk').innerText = '$' + (window.deptLY.ck || 0).toLocaleString(undefined, dFmt);
+      if (document.getElementById('lyCu')) document.getElementById('lyCu').innerText = '$' + (window.deptLY.cu || 0).toLocaleString(undefined, dFmt);
+      if (document.getElementById('lySt')) document.getElementById('lySt').innerText = '$' + (window.deptLY.st || 0).toLocaleString(undefined, dFmt);
+
+      // TY inputs — se asignan ANTES de cualquier cálculo
+      const _fmtD = v => (v !== '' && v != null && v !== false) ? parseFloat(v).toFixed(2) : '';
+      const _fmtI = v => (v !== '' && v != null && v !== false) ? String(Math.round(parseFloat(v))) : '';
+      document.getElementById('valVentas').value   = _fmtD(data.ty?.ventas);
+      document.getElementById('valTrafico').value  = _fmtI(data.ty?.trafico);
+      document.getElementById('valUnidades').value = _fmtI(data.ty?.unidades);
+      document.getElementById('valTickets').value  = _fmtI(data.ty?.tickets);
+      document.getElementById('valStockICG').value = _fmtI(data.ty?.stockICG);
+      document.getElementById('valStockRS').value  = _fmtI(data.ty?.stockRS);
+
+      document.getElementById('valBg').value = data.tyDept?.bg || '';
+      document.getElementById('valBu').value = data.tyDept?.bu || '';
+      document.getElementById('valCk').value = data.tyDept?.ck || '';
+      document.getElementById('valCu').value = data.tyDept?.cu || '';
+      document.getElementById('valSt').value = data.tyDept?.st || '';
+
+      // Ahora que los inputs YA tienen sus valores correctos, calculamos todo
+      setTimeout(() => {
+        if (typeof calculateComps        === 'function') calculateComps();
+        if (typeof validateDeptSum       === 'function') validateDeptSum();
+        if (typeof updateStockComparison === 'function') updateStockComparison();
+        updateBudgetDisplay(); // ← último, lee valVentas con el valor correcto
+      }, 200);
+    })
+    .withFailureHandler(err => {
+      if (loadingBar) loadingBar.classList.add('hidden');
+      console.error('Error en fetchStoreData:', err);
+    })
+    .getStoreDataForDate(store, dateInput.value);
+}
+
+function submitEntry() {
+  const btn   = document.getElementById('submitBtn');
+  const store = sessionStorage.getItem('activeStore');
+  const date  = document.getElementById('inputDate').value;
+  if (!date)  return alert('⚠️ Por favor, selecciona una fecha.');
+  if (!store) return alert('Sesión expirada.');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ ENVIANDO...';
+
+  const v = parseFloat(document.getElementById('valVentas').value)   || 0;
+  const u = parseInt(document.getElementById('valUnidades').value)   || 0;
+  const t = parseInt(document.getElementById('valTickets').value)    || 0;
+
+  const metrics = {
+    ventas:   v, unidades: u, tickets: t,
+    trafico:  parseInt(document.getElementById('valTrafico').value)  || 0,
+    stockICG: parseInt(document.getElementById('valStockICG').value) || 0,
+    stockRS:  parseInt(document.getElementById('valStockRS').value)  || 0,
+    apt: t > 0 ? v / t : 0,
+    aur: u > 0 ? v / u : 0,
+    upt: t > 0 ? u / t : 0
+  };
+
+  const deptMetrics = {
+    bg: parseFloat(document.getElementById('valBg').value) || 0,
+    bu: parseFloat(document.getElementById('valBu').value) || 0,
+    ck: parseFloat(document.getElementById('valCk').value) || 0,
+    cu: parseFloat(document.getElementById('valCu').value) || 0,
+    st: parseFloat(document.getElementById('valSt').value) || 0
+  };
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.disabled = false;
+      btn.innerHTML = 'ENVIAR DATOS <span class="material-symbols-outlined text-sm">send</span>';
+      if (res.success) alert('✅ Datos guardados correctamente.');
+      else alert('❌ Error: ' + res.message);
+    })
+    .withFailureHandler(function(err) {
+      btn.disabled = false;
+      btn.innerHTML = 'REINTENTAR ENVÍO';
+      alert('❌ Error crítico: ' + err.message);
+    })
+    .submitDailyMetrics(store, date, metrics, deptMetrics);
+}
+
+let _entryFiles = [];
+
+function handleFileSelect(input) {
+  if (input.files && input.files.length > 0) {
+    Array.from(input.files).forEach(f => {
+      // Evitar duplicados por nombre + tamaño
+      const exists = _entryFiles.some(e => e.name === f.name && e.size === f.size);
+      if (!exists) _entryFiles.push(f);
+    });
+  }
+  _updateUploadUI();
+}
+
+function _updateUploadUI() {
+  const text    = document.getElementById('uploadText');
+  const icon    = document.getElementById('uploadIcon');
+  const clearBtn = document.getElementById('clearFilesBtn');
+  if (_entryFiles.length > 0) {
+    text.innerText = _entryFiles.length === 1
+      ? 'ARCHIVO LISTO: ' + _entryFiles[0].name.toUpperCase()
+      : _entryFiles.length + ' ARCHIVOS LISTOS PARA ENVIAR';
+    text.className = 'text-xs font-black text-emerald-500 uppercase tracking-widest text-center';
+    icon.style.color = '#10b981';
+    if (clearBtn) clearBtn.classList.remove('hidden');
+  } else {
+    text.innerText = 'TOCA PARA SUBIR ARCHIVOS';
+    text.className = 'text-xs font-bold text-zinc-500 uppercase tracking-widest text-center';
+    icon.style.color = '';
+    if (clearBtn) clearBtn.classList.add('hidden');
+  }
+}
+
+function clearEntryFiles() {
+  _entryFiles = [];
+  const fi = document.getElementById('fileInput');
+  if (fi) fi.value = '';
+  _updateUploadUI();
+}
+
+function calculateComps() {
+  if (!window.lyRawData) return;
+  const v = parseFloat(document.getElementById('valVentas').value)   || 0;
+  const u = parseFloat(document.getElementById('valUnidades').value) || 0;
+  const t = parseFloat(document.getElementById('valTickets').value)  || 0;
+
+  const mapping = [
+    { act: v, ly: window.lyRawData.ventas,   id: 'compVentas',   prefix: 'LY: $' },
+    { act: u, ly: window.lyRawData.unidades, id: 'compUnidades', prefix: 'LY: ' },
+    { act: t, ly: window.lyRawData.tickets,  id: 'compTickets',  prefix: 'LY: ' },
+    { act: parseFloat(document.getElementById('valTrafico').value) || 0, ly: window.lyRawData.trafico, id: 'compTrafico', prefix: 'LY: ' }
+  ];
+  mapping.forEach(item => {
+    const badge = document.getElementById(item.id);
+    if (!badge) return;
+    if (item.ly > 0) {
+      const diff  = ((item.act / item.ly) - 1) * 100;
+      const color = diff >= 0 ? '#10b981' : '#ef4444';
+      const icon  = diff >= 0 ? '▲' : '▼';
+      badge.innerText = `${icon} ${Math.abs(diff).toFixed(1)}% LY`;
+      badge.style.color = color;
+    } else {
+      badge.innerText = item.prefix + Math.round(item.ly || 0).toLocaleString();
+      badge.style.color = '#93c5fd';
+    }
+  });
+}
+
+function validateDeptSum() {
+  const depts = [
+    { id: 'Bg', valTY: parseFloat(document.getElementById('valBg').value) || 0, key: 'bg' },
+    { id: 'Bu', valTY: parseFloat(document.getElementById('valBu').value) || 0, key: 'bu' },
+    { id: 'Ck', valTY: parseFloat(document.getElementById('valCk').value) || 0, key: 'ck' },
+    { id: 'Cu', valTY: parseFloat(document.getElementById('valCu').value) || 0, key: 'cu' },
+    { id: 'St', valTY: parseFloat(document.getElementById('valSt').value) || 0, key: 'st' }
+  ];
+  depts.forEach(dept => {
+    const valLY    = window.deptLY ? (window.deptLY[dept.key] || 0) : 0;
+    const compEl   = document.getElementById('comp' + dept.id);
+    if (compEl) {
+      if (valLY > 0 && dept.valTY > 0) {
+        const porc  = ((dept.valTY / valLY) - 1) * 100;
+        compEl.innerText    = (porc >= 0 ? '▲ ' : '▼ ') + Math.abs(porc).toFixed(1) + '%';
+        compEl.style.color  = porc >= 0 ? '#10b981' : '#ef4444';
+        compEl.style.fontWeight = 'bold';
+      } else {
+        compEl.innerText   = '--%';
+        compEl.style.color = '#93c5fd';
+        compEl.style.fontWeight = 'normal';
+      }
+    }
+  });
+}
+
+function updateStockComparison() {
+  const currentStock = parseFloat(document.getElementById('valStockICG')?.value) || 0;
+  const lyStock      = parseFloat(window.lyRawData?.stockICG) || 0;
+  const currentEl    = document.getElementById('stock-current-val');
+  const lyEl         = document.getElementById('stock-ly-val');
+  const badge        = document.getElementById('stock-comp-badge');
+  if (currentEl) currentEl.innerText = Math.round(currentStock).toLocaleString();
+  if (lyEl)      lyEl.innerText      = Math.round(lyStock).toLocaleString();
+  if (!badge) return;
+  if (lyStock > 0) {
+    const diff = ((currentStock / lyStock) - 1) * 100;
+    const isUp = diff >= 0;
+    badge.innerText   = `${isUp ? '↑' : '↓'} ${Math.abs(diff).toFixed(1)}% VS LY`;
+    badge.className   = isUp
+      ? 'inline-flex px-4 py-2 rounded-full bg-emerald-100 text-emerald-600 text-[11px] font-black uppercase tracking-widest'
+      : 'inline-flex px-4 py-2 rounded-full bg-red-100 text-red-600 text-[11px] font-black uppercase tracking-widest';
+  } else {
+    badge.innerText   = 'SIN LY';
+    badge.className   = 'inline-flex px-4 py-2 rounded-full bg-blue-50 text-blue-500 text-[11px] font-black uppercase tracking-widest';
+  }
+}
+
+// ─── BUDGET ───────────────────────────────────────────────────────────────────
+function updateBudgetDisplay() {
+  if (!window.currentBudget || typeof window.currentBudget.daily === 'undefined') return;
+
+  const budget       = window.currentBudget;
+  const daily        = parseFloat(budget.daily) || 0;
+  // Leer el valor del input directamente (ya tiene el valor correcto al llamarse)
+  const ventasActual = parseFloat(document.getElementById('valVentas')?.value) || 0;
+
+  const metaInfo    = document.getElementById('meta-diaria-info');
+  const badge       = document.getElementById('cumplimiento-badge');
+  const progressBar = document.getElementById('budget-progress-bar');
+  const progresoTxt = document.getElementById('progreso-texto');
+  const weightCap   = document.getElementById('weight-caption');
+
+  // Mostrar meta diaria
+  if (metaInfo) metaInfo.innerText = '$' + Math.round(daily).toLocaleString();
+
+  // Caption del peso
+  if (weightCap && budget.weightUsed) {
+    weightCap.innerText = `* Meta calculada con un peso del ${budget.weightUsed}% para este ${budget.dayName}.`;
+  }
+
+  // Calcular porcentaje de cumplimiento
+  const porc = daily > 0 ? (ventasActual / daily) * 100 : 0;
+
+  if (progresoTxt) progresoTxt.innerText = porc.toFixed(1) + '%';
+
+  if (progressBar) {
+    progressBar.style.width           = Math.min(porc, 100) + '%';
+    progressBar.style.backgroundColor = porc >= 100 ? '#10b981' : porc >= 85 ? '#f59e0b' : '#60a5fa';
+  }
+
+  if (badge) {
+    badge.innerText             = Math.round(porc) + '% OBJETIVO';
+    badge.style.backgroundColor = porc >= 100 ? '#064e3b' : porc >= 85 ? '#78350f' : '#1e3a5f';
+    badge.style.color           = porc >= 100 ? '#34d399' : porc >= 85 ? '#fbbf24' : '#93c5fd';
+  }
+}
+
+function initBudget() {
+  const store  = sessionStorage.getItem('activeStore');
+  const nameEl = document.getElementById('budgetStoreName');
+  if (nameEl) nameEl.innerText = store;
+
+  const picker = document.getElementById('budgetMonthPicker');
+  if (picker) picker.value = new Date().getMonth();
+
+  loadBudgetData();
+}
+
+function loadBudgetData() {
+  const store = sessionStorage.getItem('activeStore');
+  const picker = document.getElementById('budgetMonthPicker');
+  const monthIndex = picker ? parseInt(picker.value) : new Date().getMonth();
+
+  ['mtd-actual','mtd-target','ytd-actual','ytd-target'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = 'Cargando...';
+  });
+  google.script.run
+    .withSuccessHandler(function(data) {
+      if (!data || !data.mtd) return;
+      document.getElementById('mtd-actual').innerText  = '$' + Math.round(data.mtd.actual).toLocaleString();
+      document.getElementById('mtd-target').innerText  = 'Meta: $' + Math.round(data.mtd.target).toLocaleString();
+      document.getElementById('mtd-pct').innerText     = data.mtd.pct.toFixed(1) + '%';
+      document.getElementById('mtd-bar').style.width   = Math.min(data.mtd.pct, 100) + '%';
+      document.getElementById('ytd-actual').innerText  = '$' + Math.round(data.ytd.actual).toLocaleString();
+      document.getElementById('ytd-target').innerText  = 'Meta: $' + Math.round(data.ytd.target).toLocaleString();
+      document.getElementById('ytd-pct').innerText     = data.ytd.pct.toFixed(1) + '%';
+      document.getElementById('ytd-bar').style.width   = Math.min(data.ytd.pct, 100) + '%';
+      const mtdBar = document.getElementById('mtd-bar');
+      if (data.mtd.pct >= 100) mtdBar.style.backgroundColor = '#10b981';
+      else if (data.mtd.pct >= 85) mtdBar.style.backgroundColor = '#f59e0b';
+    })
+    .withFailureHandler(err => alert('Error al obtener presupuesto: ' + err))
+    .getBudgetData(store, monthIndex);
+}
+
+function initAdminBudget() {
+  const select = document.getElementById('adminStoreSelector');
+  if (!select) return;
+
+  const role = (sessionStorage.getItem('userRole') || '').toUpperCase();
+  const monthPicker = document.getElementById('adminBudgetMonthPicker');
+  const countrySelect = document.getElementById('adminBudgetCountry');
+  if (monthPicker) monthPicker.value = new Date().getMonth();
+  if (countrySelect && role === 'RETAIL') {
+    countrySelect.value = getRetailCountry();
+    countrySelect.classList.add('hidden');
+  }
+
+  const budgetHandler = function(stores) {
+    // RETAIL no tiene opción GLOBAL — solo ve sus tiendas
+    select.innerHTML = role === 'ADMIN' ? '<option value="GLOBAL">🌎 VISTA GLOBAL</option>' : '';
+    stores.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = opt.text = s;
+      select.appendChild(opt);
+    });
+    refreshAdminBudget();
+  };
+  loadStoresForCurrentUser(budgetHandler);
+}
+
+function refreshAdminBudget() {
+  const role = (sessionStorage.getItem('userRole') || '').toUpperCase();
+  const selection = document.getElementById('adminStoreSelector').value;
+  const isGlobal  = role === 'ADMIN' && (selection === 'GLOBAL');
+  if (role === 'RETAIL' && !isRetailStoreAllowed(selection)) return alert('Esta ubicación no pertenece a tu país asignado.');
+  const monthPicker = document.getElementById('adminBudgetMonthPicker');
+  const monthIndex = monthPicker ? parseInt(monthPicker.value) : new Date().getMonth();
+  document.getElementById('admin-mtd-actual').innerText = 'CALCULANDO...';
+  document.getElementById('admin-ytd-actual').innerText = 'CALCULANDO...';
+  google.script.run
+    .withSuccessHandler(function(data) {
+      if (!data) return;
+      const result = isGlobal ? data.global : data;
+      if (!result || !result.mtd) return;
+      document.getElementById('admin-mtd-actual').innerText = '$' + Math.round(result.mtd.actual || 0).toLocaleString();
+      document.getElementById('admin-mtd-target').innerText = 'Meta: $' + Math.round(result.mtd.target || 0).toLocaleString();
+      document.getElementById('admin-mtd-pct').innerText    = (result.mtd.pct || 0).toFixed(1) + '%';
+      document.getElementById('admin-mtd-bar').style.width  = Math.min(result.mtd.pct || 0, 100) + '%';
+      document.getElementById('admin-ytd-actual').innerText = '$' + Math.round(result.ytd.actual || 0).toLocaleString();
+      document.getElementById('admin-ytd-target').innerText = 'Meta: $' + Math.round(result.ytd.target || 0).toLocaleString();
+      document.getElementById('admin-ytd-pct').innerText    = (result.ytd.pct || 0).toFixed(1) + '%';
+      document.getElementById('admin-ytd-bar').style.width  = Math.min(result.ytd.pct || 0, 100) + '%';
+
+      // Renderiza desglose por tienda si disponible
+      if (isGlobal && data.individualStores) renderStoreBudgetBreakdown(data.individualStores);
+    })
+    .withFailureHandler(err => { console.error(err); })
+    .getAdminBudgetData(selection, isGlobal, monthIndex, role === 'RETAIL' ? getRetailCountry() : null);
+}
+
+function renderStoreBudgetBreakdown(stores) {
+  const container = document.getElementById('store-budget-breakdown');
+  const tbody     = document.getElementById('store-budget-tbody');
+  if (!container || !tbody || !stores.length) return;
+  tbody.innerHTML = stores.map(s => {
+    const pct      = s.mtdPct || 0;
+    const pctColor = pct >= 100 ? '#10b981' : pct >= 80 ? '#f59e0b' : '#ef4444';
+    const country  = getStoreCountry(s.name) || '---';
+    const flag     = COUNTRY_FLAGS[country]   || '';
+    return `<tr data-country="${country}" class="hover:bg-blue-50/50 transition-colors">
+      <td class="px-6 py-4 font-black text-zinc-800 text-[11px]">${s.name}</td>
+      <td class="px-6 py-4 text-center"><span class="country-badge">${flag} ${country}</span></td>
+      <td class="px-6 py-4 text-right font-bold text-[11px]">$${Math.round(s.mtdActual || 0).toLocaleString()}</td>
+      <td class="px-6 py-4 text-right text-zinc-400 text-[11px]">$${Math.round(s.mtdTarget || 0).toLocaleString()}</td>
+      <td class="px-6 py-4 text-right font-black text-[12px]" style="color:${pctColor}">${pct.toFixed(1)}%</td>
+    </tr>`;
+  }).join('');
+  container.classList.remove('hidden');
+}
+
+// ─── ANÁLISIS SEMANAL ─────────────────────────────────────────────────────────
+function initAnalysis() {
+  const store = sessionStorage.getItem('activeStore');
+  const role  = sessionStorage.getItem('userRole');
+  const el    = document.getElementById('analysisStoreTitle');
+  if (el) el.innerText = 'Análisis — ' + store;
+
+  if (role === 'ADMIN' || role === 'RETAIL') {
+    const switcher = document.getElementById('adminAnalysisStoreSwitcher');
+    const select   = document.getElementById('adminAnalysisStoreSelect');
+    if (switcher) switcher.classList.remove('hidden');
+    if (select) {
+      const analysisHandler = function(stores) {
+        select.innerHTML = '';
+        let matched = false;
+        stores.forEach(function(name) {
+          const opt = document.createElement('option');
+          opt.value = opt.text = name;
+          if (name === store) { opt.selected = true; matched = true; }
+          select.appendChild(opt);
+        });
+        if (!matched && stores.length > 0) {
+          select.value = stores[0];
+          sessionStorage.setItem('activeStore', stores[0]);
+          const el = document.getElementById('analysisStoreTitle');
+          if (el) el.innerText = 'Análisis — ' + stores[0];
+        }
+      };
+      loadStoresForCurrentUser(analysisHandler);
+    }
+  }
+
+  populateWeeks();
+}
+
+function switchAnalysisStore(newStore) {
+  if (!isRetailStoreAllowed(newStore)) return alert('Esta ubicación no pertenece a tu país asignado.');
+  sessionStorage.setItem('activeStore', newStore);
+  const title = document.getElementById('analysisStoreTitle');
+  if (title) title.innerText = 'Análisis — ' + newStore;
+  const container = document.getElementById('analysis-container');
+  if (container) container.style.opacity = '0.4';
+  fetchWeeklyData();
+  setTimeout(function() {
+    if (container) container.style.opacity = '1';
+  }, 400);
+}
+
+function populateWeeks() {
+  const select = document.getElementById('weekPicker');
+  if (!select) return;
+  select.innerHTML = '<option disabled>Cargando semanas...</option>';
+  google.script.run
+    .withSuccessHandler(function(currentWeek) {
+      select.innerHTML = '';
+      for (let i = currentWeek; i >= 1; i--) {
+        const opt  = document.createElement('option');
+        opt.value  = i;
+        opt.text   = 'Semana ' + i + (i === currentWeek ? ' (ACTUAL)' : '');
+        select.appendChild(opt);
+      }
+      select.value = currentWeek;
+      fetchWeeklyData();
+    })
+    .withFailureHandler(() => {
+      select.innerHTML = '<option value="15">Semana 15</option>';
+      fetchWeeklyData();
+    })
+    .getExactWeekNum();
+}
+
+function fetchWeeklyData() {
+  const store = sessionStorage.getItem('activeStore');
+  const week  = document.getElementById('weekPicker').value;
+  if (!store) return;
+
+  const seq = ++_weeklyFetchSeq;
+  const ids = ['week-ventas','week-unidades','week-tickets','week-trafico',
+               'upt-val','apt-val','conv-val','comp-v','comp-u','comp-t','comp-tr',
+               'upt-comp','apt-comp','conv-comp','ly-val-v','ly-val-u','ly-val-t','ly-val-tr'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.innerText = '...'; });
+
+  google.script.run.withSuccessHandler(function(data) {
+    if (seq !== _weeklyFetchSeq) return;
+    if (!data) { ids.forEach(id => { const el = document.getElementById(id); if (el) el.innerText = '0'; }); return; }
+    try {
+      document.getElementById('week-ventas').innerText   = '$' + ((data.ventas?.actual   || 0) / 1000).toFixed(1) + 'k';
+      document.getElementById('week-unidades').innerText = (data.unidades?.actual || 0).toLocaleString();
+      document.getElementById('week-tickets').innerText  = (data.tickets?.actual  || 0).toLocaleString();
+      document.getElementById('week-trafico').innerText  = ((data.trafico?.actual  || 0) / 1000).toFixed(1) + 'k';
+      document.getElementById('ly-val-v').innerText      = 'LY: $' + ((data.ventas?.ly   || 0) / 1000).toFixed(1) + 'k';
+      document.getElementById('ly-val-u').innerText      = 'LY: '  + (data.unidades?.ly  || 0).toLocaleString();
+      document.getElementById('ly-val-t').innerText      = 'LY: '  + (data.tickets?.ly   || 0).toLocaleString();
+      document.getElementById('ly-val-tr').innerText     = 'LY: '  + ((data.trafico?.ly  || 0) / 1000).toFixed(1) + 'k';
+      document.getElementById('upt-val').innerText       = (parseFloat(data.upt?.actual)  || 0).toFixed(2);
+      document.getElementById('apt-val').innerText       = '$' + Math.round(data.apt?.actual || 0);
+      document.getElementById('conv-val').innerText      = (parseFloat(data.conv?.actual)  || 0).toFixed(1) + '%';
+      applyWeeklySemaforo('card-v',  'comp-v',  data.ventas?.comp   || 0);
+      applyWeeklySemaforo('card-u',  'comp-u',  data.unidades?.comp || 0);
+      applyWeeklySemaforo('card-t',  'comp-t',  data.tickets?.comp  || 0);
+      applyWeeklySemaforo('card-tr', 'comp-tr', data.trafico?.comp  || 0);
+      applyKPIBadge('upt-comp',  data.upt?.comp  || 0);
+      applyKPIBadge('apt-comp',  data.apt?.comp  || 0);
+      applyKPIBadge('conv-comp', data.conv?.comp || 0);
+      if (typeof loadSavedFeedback === 'function') loadSavedFeedback();
+    } catch (err) { console.error('Error procesando datos:', err); }
+  }).getWeeklySummary(store, week);
+}
+
+function applyWeeklySemaforo(cardId, compId, value) {
+  const card  = document.getElementById(cardId);
+  const label = document.getElementById(compId);
+  if (!card || !label) return;
+  const pct = Math.abs(value).toFixed(1);
+  if (value > 0) {
+    card.style.backgroundColor = '#064e3b';
+    label.innerText   = `▲ ${pct}% VS LY`;
+    label.style.color = '#34d399';
+  } else if (value < 0) {
+    card.style.backgroundColor = '#450a0a';
+    label.innerText   = `▼ ${pct}% VS LY`;
+    label.style.color = '#f87171';
+  } else {
+    card.style.backgroundColor = '#0D47A1';
+    label.innerText   = '0% VS LY';
+    label.style.color = '#93c5fd';
+  }
+}
+
+function applyKPIBadge(badgeId, value) {
+  const badge = document.getElementById(badgeId);
+  if (!badge) return;
+  const color = value >= 0 ? '#10b981' : '#ef4444';
+  const icon  = value >= 0 ? '▲' : '▼';
+  badge.innerHTML = `<span style="color:${color}">${icon} ${Math.abs(value).toFixed(1)}% VS LY</span>`;
+}
+
+function saveFeedback() {
+  const store      = sessionStorage.getItem('activeStore');
+  const week       = document.getElementById('weekPicker').value;
+  const diagnostico = document.getElementById('feedback-diagnostico').value;
+  const accion      = document.getElementById('feedback-accion').value;
+  if (!diagnostico || !accion) { alert('Por favor, completa ambos campos antes de guardar.'); return; }
+  const btn = event.target;
+  btn.innerText = 'GUARDANDO...';
+  btn.disabled  = true;
+  google.script.run.withSuccessHandler(function(res) {
+    btn.innerText = 'Guardar Análisis';
+    btn.disabled  = false;
+    if (res.success) alert('Análisis guardado para la Semana ' + week);
+  }).saveStoreFeedback({ store, week, diagnostico, accion });
+}
+
+function loadSavedFeedback() {
+  const store = sessionStorage.getItem('activeStore');
+  const week  = document.getElementById('weekPicker')?.value;
+  if (store && week) {
+    google.script.run.withSuccessHandler(function(saved) {
+      if (saved) {
+        if (document.getElementById('feedback-diagnostico')) document.getElementById('feedback-diagnostico').value = saved.diagnostico;
+        if (document.getElementById('feedback-accion'))      document.getElementById('feedback-accion').value      = saved.accion;
+      }
+    }).getSavedFeedback(store, week);
+  }
+}
+
+function generateAITips() {
+  const btn       = document.getElementById('ai-btn');
+  const container = document.getElementById('ai-tips-container');
+  const contexto  = document.getElementById('feedback-diagnostico').value;
+  const store     = sessionStorage.getItem('activeStore');
+  const week      = document.getElementById('weekPicker').value;
+  if (!contexto || contexto.length < 10) { alert('Por favor, escribe primero un diagnóstico para que la IA pueda ayudarte.'); return; }
+  btn.disabled  = true;
+  btn.innerHTML = '<span>⏳</span> ANALIZANDO...';
+  container.innerHTML = 'Analizando tus KPIs y el contexto de la tienda...';
+  google.script.run.withSuccessHandler(function(data) {
+    google.script.run.withSuccessHandler(function(aiResponse) {
+      container.innerHTML = `<div style="color:white;line-height:1.6">${aiResponse.replace(/\n/g, '<br>')}</div>`;
+      btn.disabled  = false;
+      btn.innerText = 'ACTUALIZAR ESTRATEGIA';
+    }).getGeminiTips(data, contexto);
+  }).getWeeklySummary(store, week);
+}
+
+// ─── ADMIN (RANKING REGIONAL) ─────────────────────────────────────────────────
+window._adminStores = [];
+window._adminSort = { key: 'unidades', dir: 'desc' };
+
+function initAdmin() {
+  const role = (sessionStorage.getItem('userRole') || '').toUpperCase();
+  if (role === 'RETAIL') {
+    // Ocultar completamente el selector de país — RETAIL solo ve su país
+    const countryFocusEl = document.getElementById('adminCountryFocus');
+    if (countryFocusEl) {
+      countryFocusEl.value = getRetailCountry();
+      // parentElement es el div contenedor del selector
+      const card = countryFocusEl.parentElement;
+      if (card) card.style.display = 'none';
+    }
+  }
+  populateAdminWeeks();
+  const picker = document.getElementById('adminWeekPicker');
+  if (picker) picker.onchange = loadAdminData;
+}
+
+function populateAdminWeeks() {
+  const select = document.getElementById('adminWeekPicker');
+  if (!select) return;
+  select.innerHTML = '<option disabled>Cargando semanas...</option>';
+  google.script.run
+    .withSuccessHandler(function(currentWeek) {
+      select.innerHTML = '';
+      for (let i = currentWeek; i >= 1; i--) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.text  = 'Semana ' + i;
+        select.appendChild(opt);
+      }
+      select.value = currentWeek;
+      loadAdminData();
+    })
+    .withFailureHandler(() => {
+      select.innerHTML = '<option value="15">Semana 15</option>';
+      loadAdminData();
+    })
+    .getExactWeekNum();
+}
+
+function loadAdminData() {
+  const picker  = document.getElementById('adminWeekPicker');
+  if (!picker) return;
+  const week    = picker.value;
+  const role    = (sessionStorage.getItem('userRole') || '').toUpperCase();
+  const country = role === 'RETAIL'
+    ? (getRetailCountry() || 'REGIONAL')
+    : (document.getElementById('adminCountryFocus')?.value || 'REGIONAL');
+  const tbody   = document.getElementById('admin-table-body');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:20px">Cargando Ranking...</td></tr>';
+
+  // Update country badge
+  const badge = document.getElementById('admin-country-badge');
+  if (badge) {
+    if (country === 'REGIONAL') { badge.classList.add('hidden'); }
+    else {
+      badge.classList.remove('hidden');
+      badge.innerText = (COUNTRY_FLAGS[country] || '') + ' ' + country;
+    }
+  }
+
+  google.script.run.withSuccessHandler(function(results) {
+    if (!results || !results.stores || results.stores.length === 0) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:20px">Sin datos para la Semana ' + week + '</td></tr>';
+      return;
+    }
+
+    // Filter by country if needed
+    let stores = results.stores;
+    if (country !== 'REGIONAL') {
+      stores = stores.filter(s => getStoreCountry(s.name) === country);
+    }
+
+    window._adminStores = stores.slice();
+    window._adminSort = { key: 'unidades', dir: 'desc' };
+
+    // Update header KPIs
+    const totalVentas = stores.reduce((sum, s) => sum + (s.ventas || 0), 0);
+    const totalUnids  = stores.reduce((sum, s) => sum + (s.unidades || 0), 0);
+    const totalTickets = stores.reduce((sum, s) => sum + (s.tickets || 0), 0);
+
+    const el1 = document.getElementById('total-ventas-regional');
+    if (el1) el1.innerText = '$' + Math.round(totalVentas).toLocaleString();
+
+    if (stores.length > 0) {
+      const top = stores[0];
+      const el2 = document.getElementById('top-store-name');
+      const el3 = document.getElementById('top-store-country');
+      if (el2) el2.innerText = top.name;
+      if (el3) {
+        const c = getStoreCountry(top.name) || '---';
+        el3.innerText = (COUNTRY_FLAGS[c] || '') + ' ' + c;
+      }
+    }
+
+    const avgUPT = totalTickets > 0 ? (totalUnids / totalTickets).toFixed(2) : '0.00';
+    const el4    = document.getElementById('avg-upt-regional');
+    if (el4) el4.innerText = avgUPT;
+
+    updateAdminTopPerformers(stores);
+    renderAdminRanking();
+  }).getRegionalData(week, role === 'RETAIL' ? getRetailCountry() : null);
+}
+
+function updateAdminTopPerformers(stores) {
+  const list = stores || [];
+  const byNumber = (key) => list
+    .filter(s => Number(s[key]) > 0)
+    .sort((a, b) => Number(b[key]) - Number(a[key]))[0];
+  const setTop = (prefix, store, valueLabel) => {
+    const storeEl = document.getElementById('top-' + prefix + '-store');
+    const countryEl = document.getElementById('top-' + prefix + '-country');
+    const valueEl = document.getElementById('top-' + prefix + '-value');
+    if (!store) {
+      if (storeEl) storeEl.innerText = '---';
+      if (countryEl) countryEl.innerText = '---';
+      if (valueEl) valueEl.innerText = valueLabel;
+      return;
+    }
+    const country = getStoreCountry(store.name) || '---';
+    if (storeEl) storeEl.innerText = store.name;
+    if (countryEl) countryEl.innerText = (COUNTRY_FLAGS[country] || '') + ' ' + country;
+    if (valueEl) valueEl.innerText = valueLabel;
+  };
+
+  const topConv = byNumber('conv');
+  const topUpt  = byNumber('upt');
+  const topApt  = byNumber('apt');
+  setTop('conv', topConv, topConv ? Number(topConv.conv || 0).toFixed(1) + '%' : '0.0%');
+  setTop('upt', topUpt, topUpt ? Number(topUpt.upt || 0).toFixed(2) : '0.00');
+  setTop('apt', topApt, topApt ? '$' + Number(topApt.apt || 0).toFixed(2) : '$0.00');
+}
+
+function sortAdminRanking(key) {
+  const current = window._adminSort || { key: 'unidades', dir: 'desc' };
+  const numericKeys = ['ventas','compV','unidades','compU','trafico','compTr','upt','apt','aur','conv'];
+  const defaultDir = numericKeys.includes(key) ? 'desc' : 'asc';
+  window._adminSort = {
+    key: key,
+    dir: current.key === key ? (current.dir === 'asc' ? 'desc' : 'asc') : defaultDir
+  };
+  renderAdminRanking();
+}
+
+function renderAdminRanking() {
+  const tbody = document.getElementById('admin-table-body');
+  if (!tbody) return;
+
+  const sort = window._adminSort || { key: 'unidades', dir: 'desc' };
+  const stores = (window._adminStores || []).slice().sort(function(a, b) {
+    const aVal = sort.key === 'country' ? getStoreCountry(a.name) : a[sort.key];
+    const bVal = sort.key === 'country' ? getStoreCountry(b.name) : b[sort.key];
+    const aEmpty = aVal === null || aVal === undefined || aVal === '';
+    const bEmpty = bVal === null || bVal === undefined || bVal === '';
+    if (aEmpty && bEmpty) return 0;
+    if (aEmpty) return 1;
+    if (bEmpty) return -1;
+
+    if (typeof aVal === 'string' || typeof bVal === 'string') {
+      return sort.dir === 'asc'
+        ? String(aVal).localeCompare(String(bVal))
+        : String(bVal).localeCompare(String(aVal));
+    }
+
+    return sort.dir === 'asc'
+      ? Number(aVal) - Number(bVal)
+      : Number(bVal) - Number(aVal);
+  });
+
+  document.querySelectorAll('.admin-sort-header').forEach(function(btn) {
+    const isActive = btn.dataset.sortKey === sort.key;
+    btn.classList.toggle('is-active', isActive);
+    const icon = btn.querySelector('.admin-sort-icon');
+    if (icon) icon.innerText = isActive ? (sort.dir === 'asc' ? '▲' : '▼') : '';
+  });
+
+  tbody.innerHTML = stores.map((s, idx) => {
+    const storeCountry = getStoreCountry(s.name) || '---';
+    const flag         = COUNTRY_FLAGS[storeCountry] || '';
+    const rankColor    = idx === 0 ? 'bg-blue-50' : idx === 1 ? 'bg-blue-50/50' : '';
+    return `<tr class="${rankColor} hover:bg-blue-50/30 transition-colors">
+      <td class="px-4 py-3 font-black text-zinc-800 text-[12px]">
+        <span class="inline-flex items-center gap-2">
+          <span class="text-[10px] font-black text-zinc-400">#${idx + 1}</span>
+          ${s.name}
+        </span>
+      </td>
+      <td class="px-4 py-3 text-center">
+        <span class="country-badge">${flag} ${storeCountry}</span>
+      </td>
+      <td class="px-4 py-3 text-right font-bold">$${Math.round(s.ventas || 0).toLocaleString()}</td>
+      <td class="px-4 py-3 text-right text-xs font-black" style="color:${s.compV==null?'#999':s.compV>=0?'#16a34a':'#dc2626'}">${s.compV==null?'N/D':(s.compV>=0?'+':'')+s.compV.toFixed(1)+'%'}</td>
+      <td class="px-4 py-3 text-right">${Math.round(s.unidades || 0).toLocaleString()}</td>
+      <td class="px-4 py-3 text-right text-xs font-black" style="color:${s.compU==null?'#999':s.compU>=0?'#16a34a':'#dc2626'}">${s.compU==null?'N/D':(s.compU>=0?'+':'')+s.compU.toFixed(1)+'%'}</td>
+      <td class="px-4 py-3 text-right">${Math.round(s.trafico || 0).toLocaleString()}</td>
+      <td class="px-4 py-3 text-right text-xs font-black" style="color:${s.compTr==null?'#999':s.compTr>=0?'#16a34a':'#dc2626'}">${s.compTr==null?'N/D':(s.compTr>=0?'+':'')+s.compTr.toFixed(1)+'%'}</td>
+      <td class="px-4 py-3 text-right">${Number(s.upt || 0).toFixed(2)}</td>
+      <td class="px-4 py-3 text-right">$${Number(s.apt || 0).toFixed(2)}</td>
+      <td class="px-4 py-3 text-right">$${Number(s.aur || 0).toFixed(2)}</td>
+      <td class="px-4 py-3 text-right">${Number(s.conv || 0).toFixed(1)}%</td>
+    </tr>`;
+  }).join('');
+}
+
+function inspectStore(storeName) {
+  if (!isRetailStoreAllowed(storeName)) return alert('Esta ubicación no pertenece a tu país asignado.');
+  sessionStorage.setItem('activeStore', storeName);
+  loadScreen('Analysis');
+}
+
+// ─── COMPARATIVO ──────────────────────────────────────────────────────────────
+function initComparativo() {
+  const role      = (sessionStorage.getItem('userRole') || '').toUpperCase();
+  const container = document.getElementById('adminStoreFilterContainer');
+  const tyStart   = document.getElementById('tyStart');
+  const tyEnd     = document.getElementById('tyEnd');
+  const lyStart   = document.getElementById('lyStart');
+  const lyEnd     = document.getElementById('lyEnd');
+
+  const syncDate = (source, target) => {
+    if (!source.value) return;
+    let d = new Date(source.value + 'T00:00:00');
+    d.setDate(d.getDate() - 364);
+    target.value = d.toISOString().split('T')[0];
+  };
+
+  tyStart.onchange = () => syncDate(tyStart, lyStart);
+  tyEnd.onchange   = () => syncDate(tyEnd,   lyEnd);
+
+  const today = new Date();
+  tyEnd.value = today.toISOString().split('T')[0];
+  let start   = new Date();
+  start.setDate(today.getDate() - 6);
+  tyStart.value = start.toISOString().split('T')[0];
+  syncDate(tyStart, lyStart);
+  syncDate(tyEnd, lyEnd);
+
+  if (role === 'ADMIN' || role === 'RETAIL') {
+    if (container) container.classList.remove('hidden');
+    const comboHandler = function(stores) {
+      const group = document.getElementById('storeCheckboxGroup');
+      if (!group) return;
+      group.innerHTML = stores.map(s => {
+        const country = getStoreCountry(s);
+        const flag    = COUNTRY_FLAGS[country]  || '';
+        return `<label class="flex items-center bg-white border border-blue-100 px-4 py-2 rounded-full text-[10px] font-black cursor-pointer hover:border-primary hover:text-primary transition-all gap-2" data-country="${country}">
+          <input type="checkbox" name="storeCheck" value="${s}" class="mr-1 accent-[#1565C0]">
+          ${flag} ${s}
+        </label>`;
+      }).join('');
+    };
+    loadStoresForCurrentUser(comboHandler);
+  }
+}
+
+function toggleAllStores(selectAll) {
+  document.getElementsByName('storeCheck').forEach(c => c.checked = selectAll);
+}
+
+function fetchCustomComparison() {
+  const role = (sessionStorage.getItem('userRole') || '').toUpperCase();
+  const btn  = document.getElementById('btnCalcularComp');
+  let selectedStores = [];
+  if (role === 'ADMIN' || role === 'RETAIL') {
+    selectedStores = Array.from(document.querySelectorAll('input[name="storeCheck"]:checked')).map(c => c.value);
+    if (role === 'RETAIL') selectedStores = selectedStores.filter(isRetailStoreAllowed);
+  } else {
+    selectedStores = [sessionStorage.getItem('activeStore')];
+  }
+  if (selectedStores.length === 0) return alert('⚠️ Selecciona al menos una ubicación.');
+
+  const ranges = {
+    ty: { start: document.getElementById('tyStart').value, end: document.getElementById('tyEnd').value },
+    ly: { start: document.getElementById('lyStart').value, end: document.getElementById('lyEnd').value }
+  };
+  btn.disabled = true;
+  btn.innerHTML = 'CALCULANDO...';
+
+  google.script.run
+    .withSuccessHandler(function(response) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined text-lg">analytics</span> CALCULAR COMPARATIVA';
+      const generalData = response.generalData || response;
+      if (!generalData || (Array.isArray(generalData) && generalData.length === 0)) {
+        alert('No se encontraron datos para los rangos seleccionados.');
+        return;
+      }
+      renderCustomCompTable(generalData);
+      if (response.deptData) renderDeptCompTable(response.deptData);
+      else {
+        const c = document.getElementById('deptCustomCompContainer');
+        if (c) c.classList.add('hidden');
+      }
+    })
+    .withFailureHandler(function(err) {
+      btn.disabled = false;
+      btn.innerHTML = 'ERROR — REINTENTAR';
+      alert('Error en el servidor: ' + err.message);
+    })
+    .getCustomRangeComparison(selectedStores, ranges.ty, ranges.ly, role === 'RETAIL' ? getRetailCountry() : null);
+}
+
+function renderDeptCompTable(deptData) {
+  const container = document.getElementById('deptCustomCompContainer');
+  const tbody     = document.getElementById('deptCustomCompBody');
+  if (!deptData || !container || !tbody) return;
+  tbody.innerHTML = '';
+  const depts = [
+    { name: 'BG — Women',   key: 'bg' },
+    { name: 'BU — Men',     key: 'bu' },
+    { name: 'CK — Girls',   key: 'ck' },
+    { name: 'CU — Boys',    key: 'cu' },
+    { name: 'ST — Standard',key: 'st' }
+  ];
+  depts.forEach(dept => {
+    const ty         = deptData.ty[dept.key] || 0;
+    const ly         = deptData.ly[dept.key] || 0;
+    const comp       = ly > 0 ? ((ty / ly) - 1) * 100 : 0;
+    const colorClass = comp >= 0 ? 'text-emerald-500' : 'text-rose-500';
+    const icon       = comp >= 0 ? 'arrow_upward' : 'arrow_downward';
+    tbody.innerHTML += `
+      <tr class="border-t border-blue-50 hover:bg-blue-50 transition-colors">
+        <td class="px-6 py-4 font-black text-zinc-900 uppercase">${dept.name}</td>
+        <td class="px-6 py-4 text-right font-black text-zinc-900">$${ty.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+        <td class="px-6 py-4 text-right text-zinc-400">$${ly.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+        <td class="px-6 py-4 text-center">
+          <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-zinc-50 ${colorClass} text-[10px] font-black uppercase">
+            <span class="material-symbols-outlined text-[12px]">${icon}</span>${Math.abs(comp).toFixed(1)}%
+          </span>
+        </td>
+      </tr>`;
+  });
+  container.classList.remove('hidden');
+}
+
+window.renderCustomCompTable = function(dataArray) {
+  const container = document.getElementById('customCompResults');
+  if (!container) return;
+  container.className = 'block w-full overflow-hidden mb-10';
+  // Ordenar por Unidades DESC, luego Venta USD DESC como criterio secundario
+  dataArray = [...dataArray].sort((a, b) =>
+    ((b.unidades?.ty || 0) - (a.unidades?.ty || 0)) ||
+    ((b.ventas?.ty   || 0) - (a.ventas?.ty   || 0))
+  );
+  let html = `
+  <div class="bg-white rounded-[2rem] border border-blue-100 shadow-sm overflow-x-auto">
+    <table class="w-full text-left border-collapse">
+      <thead>
+        <tr class="bg-[#0D47A1] text-white">
+          <th class="p-4 text-[9px] font-black uppercase tracking-widest">Ubicación</th>
+          <th class="p-4 text-[9px] font-black uppercase tracking-widest text-center">País</th>
+          <th class="p-4 text-[9px] font-black uppercase tracking-widest text-right border-l border-blue-800">Venta TY</th>
+          <th class="p-4 text-[9px] font-black uppercase tracking-widest text-right">Comp %</th>
+          <th class="p-4 text-[9px] font-black uppercase tracking-widest text-right border-l border-blue-800">Unid TY</th>
+          <th class="p-4 text-[9px] font-black uppercase tracking-widest text-right">Comp %</th>
+          <th class="p-4 text-[9px] font-black uppercase tracking-widest text-right border-l border-blue-800">Tráfico TY</th>
+          <th class="p-4 text-[9px] font-black uppercase tracking-widest text-right">Comp %</th>
+          <th class="p-4 text-[9px] font-black uppercase tracking-widest text-right border-l border-blue-800">UPT</th>
+          <th class="p-4 text-[9px] font-black uppercase tracking-widest text-right border-l border-blue-800">Conv %</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-blue-50">`;
+  dataArray.forEach(row => {
+    const v    = row.ventas   || { ty: 0, comp: 0 };
+    const u    = row.unidades || { ty: 0, comp: 0 };
+    const t    = row.trafico  || { ty: 0, comp: 0 };
+    const upt  = row.upt      || { ty: 0 };
+    const conv = row.conv     || { ty: 0 };
+    const getBadge = (val) => {
+      const c = val >= 0 ? 'text-emerald-500' : 'text-rose-500';
+      const i = val >= 0 ? '↑' : '↓';
+      return `<span class="font-black ${c}">${i} ${Math.abs(val).toFixed(1)}%</span>`;
+    };
+    const country = LCW_COUNTRY_MAP[row.storeName] || '---';
+    const flag    = COUNTRY_FLAGS[country] || '';
+    html += `
+      <tr class="hover:bg-blue-50/50 transition-colors">
+        <td class="p-4 font-black text-zinc-800 text-[11px]">${row.storeName}</td>
+        <td class="p-4 text-center"><span class="country-badge">${flag} ${country}</span></td>
+        <td class="p-4 text-right font-bold text-[11px] border-l border-blue-50">$${Math.round(v.ty).toLocaleString()}</td>
+        <td class="p-4 text-right text-[10px]">${getBadge(v.comp)}</td>
+        <td class="p-4 text-right font-bold text-[11px] border-l border-blue-50">${Math.round(u.ty).toLocaleString()}</td>
+        <td class="p-4 text-right text-[10px]">${getBadge(u.comp)}</td>
+        <td class="p-4 text-right font-bold text-[11px] border-l border-blue-50">${Math.round(t.ty).toLocaleString()}</td>
+        <td class="p-4 text-right text-[10px]">${getBadge(t.comp)}</td>
+        <td class="p-4 text-right font-bold text-[11px] border-l border-blue-50">${Number(upt.ty).toFixed(2)}</td>
+        <td class="p-4 text-right font-bold text-[11px] border-l border-blue-50">${Number(conv.ty).toFixed(1)}%</td>
+      </tr>`;
+  });
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
+};
+
+// ─── EMAIL ────────────────────────────────────────────────────────────────────
+function sendEntryEmail() {
+  const btn       = document.getElementById('emailBtn');
+  const store     = sessionStorage.getItem('activeStore');
+  const date      = document.getElementById('inputDate').value;
+  const fileInput = document.getElementById('fileInput');
+  const comments  = document.getElementById('entryComments')?.value.trim() || '';
+  if (!store) return alert('Sesión expirada.');
+  if (!date)  return alert('⚠️ Por favor, selecciona una fecha.');
+
+  const v = parseFloat(document.getElementById('valVentas').value)   || 0;
+  const u = parseInt(document.getElementById('valUnidades').value)   || 0;
+  const t = parseInt(document.getElementById('valTickets').value)    || 0;
+
+  const metrics = {
+    ventas: v, unidades: u, tickets: t,
+    trafico:  parseInt(document.getElementById('valTrafico').value)  || 0,
+    stockICG: parseInt(document.getElementById('valStockICG').value) || 0,
+    stockRS:  parseInt(document.getElementById('valStockRS').value)  || 0,
+    apt: t > 0 ? v / t : 0, aur: u > 0 ? v / u : 0, upt: t > 0 ? u / t : 0,
+    ventasLY: window.lyRawData?.ventas || 0
+  };
+  const deptMetrics = {
+    bg: parseFloat(document.getElementById('valBg').value) || 0,
+    bu: parseFloat(document.getElementById('valBu').value) || 0,
+    ck: parseFloat(document.getElementById('valCk').value) || 0,
+    cu: parseFloat(document.getElementById('valCu').value) || 0,
+    st: parseFloat(document.getElementById('valSt').value) || 0
+  };
+  const deptLY = { bg: window.deptLY?.bg||0, bu: window.deptLY?.bu||0, ck: window.deptLY?.ck||0, cu: window.deptLY?.cu||0, st: window.deptLY?.st||0 };
+
+  btn.disabled = true;
+  btn.innerHTML = '⏳ PREPARANDO CORREO...';
+
+  const files = _entryFiles.slice();
+  const finishSend = (attachmentsPayload) => {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.disabled = false;
+        btn.innerHTML = 'ENVIAR CORREO <span class="material-symbols-outlined text-sm">mail</span>';
+        if (res.success) { clearEntryFiles(); alert('✅ Correo enviado correctamente.'); }
+        else alert('❌ Error al enviar correo: ' + res.message);
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = 'ENVIAR CORREO <span class="material-symbols-outlined text-sm">mail</span>';
+        alert('❌ Error crítico: ' + err.message);
+      })
+      .sendEntryEmail(store, date, metrics, deptMetrics, attachmentsPayload, deptLY, comments);
+  };
+
+  if (files.length === 0) { finishSend([]); return; }
+  let completed = 0;
+  const attachmentsPayload = [];
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      attachmentsPayload.push({ fileName: file.name, mimeType: file.type || 'application/octet-stream', base64Data: e.target.result.split(',')[1] });
+      if (++completed === files.length) finishSend(attachmentsPayload);
+    };
+    reader.onerror = function() { if (++completed === files.length) finishSend(attachmentsPayload); };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ─── LISTENERS ────────────────────────────────────────────────────────────────
+document.addEventListener('input', function(e) {
+  const id = e.target.id;
+  if (['valVentas','valUnidades','valTickets','valTrafico'].includes(id)) { calculateComps(); updateBudgetDisplay(); }
+  if (['valBg','valBu','valCk','valCu','valSt'].includes(id)) validateDeptSum();
+  if (id === 'valStockICG') updateStockComparison();
+});
+
+window.onload = () => loadScreen('Login');
+
+// ─── RENDIMIENTO ──────────────────────────────────────────────────────────────
+window._rendAllRows   = [];
+window._rendFiltered  = [];
+window._rendPage      = 0;
+window._rendPageSize  = 50;
+window._rendIsAdmin   = false;
+
+const REND_FLAGS = {
+  'VENEZUELA': '🇻🇪', 'DOMINICAN REBUPLIC': '🇩🇴', 'DOMINICAN REPUBLIC': '🇩🇴',
+  'PANAMA': '🇵🇦', 'GUATEMALA': '🇬🇹', 'COSTA RICA': '🇨🇷',
+  'CURACAO': '🇨🇼', 'EL SALVADOR': '🇸🇻'
+};
+
+function initRendimiento() {
+  document.getElementById('rend-loading').classList.remove('hidden');
+  document.getElementById('rend-content').classList.add('hidden');
+  document.getElementById('rend-empty').classList.add('hidden');
+
+  const role       = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+  const isAdmin    = role === 'ADMIN';
+  const isRetail   = role === 'RETAIL';
+  const store      = (sessionStorage.getItem('activeStore') || '').trim().toUpperCase();
+  const userCountry = sessionStorage.getItem('userCountry') || '';
+  window._rendIsAdmin = isAdmin || isRetail;
+
+  const filtroPais   = document.getElementById('rend-filtro-pais');
+  const filtroTienda = document.getElementById('rend-filtro-tienda');
+  // ADMIN: ve filtro país y tienda. RETAIL: solo filtro tienda (país fijo). STORE: ninguno.
+  if (filtroPais)   { filtroPais.classList.toggle('hidden', !isAdmin);            filtroPais.classList.toggle('flex', isAdmin); }
+  if (filtroTienda) { filtroTienda.classList.toggle('hidden', !(isAdmin||isRetail)); filtroTienda.classList.toggle('flex', isAdmin||isRetail); }
+
+  const statsGrid = document.getElementById('rend-stats-grid');
+  if (statsGrid) statsGrid.classList.toggle('hidden', !(isAdmin || isRetail));
+
+  const filtros = {
+    pais:   isAdmin  ? (document.getElementById('rend-filter-pais')?.value   || 'TODOS')
+            : isRetail ? getRetailCountry()
+            : 'TODOS',
+    tienda: isAdmin  ? (document.getElementById('rend-filter-tienda')?.value || 'TODAS')
+            : isRetail ? (document.getElementById('rend-filter-tienda')?.value || 'TODAS')
+            : store,
+    status: document.getElementById('rend-filter-status')?.value || 'TODOS',
+    scopePais: isRetail ? getRetailCountry() : ''
+  };
+
+  google.script.run
+    .withSuccessHandler(function(data) {
+      document.getElementById('rend-loading').classList.add('hidden');
+      if (!data || !data.rows || data.rows.length === 0) {
+        showRendimientoEmpty(data);
+        return;
+      }
+      _renderRendimiento(data);
+    })
+    .withFailureHandler(function(err) {
+      document.getElementById('rend-loading').classList.add('hidden');
+      showRendimientoEmpty(null);
+      console.error('Rendimiento error:', err);
+    })
+    .getRendimientoData(filtros);
+}
+
+function showRendimientoEmpty(data) {
+  const emptyEl = document.getElementById('rend-empty');
+  const iconEl = document.getElementById('rend-empty-icon');
+  const titleEl = document.getElementById('rend-empty-title');
+  const messageEl = document.getElementById('rend-empty-message');
+  if (!emptyEl) return;
+
+  const hasReport = !!(data && (data.reportDate || data.lastUpdate));
+  const totalPending = Number(data?.totalPending || 0);
+  const isFilteredEmpty = hasReport && totalPending > 0;
+
+  if (hasReport && totalPending === 0) {
+    if (iconEl) iconEl.innerText = 'check_circle';
+    if (titleEl) titleEl.innerText = '¡Felicidades! No tienes cursos pendientes';
+    if (messageEl) messageEl.innerText = data.reportDate
+      ? 'Reporte Enocta actualizado al ' + data.reportDate + '.'
+      : 'Reporte Enocta actualizado.';
+  } else if (isFilteredEmpty) {
+    if (iconEl) iconEl.innerText = 'filter_alt_off';
+    if (titleEl) titleEl.innerText = 'Sin resultados para este filtro';
+    if (messageEl) messageEl.innerText = 'Ajusta los filtros para ver otras actividades pendientes.';
+  } else {
+    if (iconEl) iconEl.innerText = 'school';
+    if (titleEl) titleEl.innerText = 'Sin datos de Enocta aún';
+    if (messageEl) messageEl.innerHTML = 'El reporte se procesa automáticamente cada lunes. Para forzar el procesamiento, ejecuta <strong>processEnoctaReport()</strong> desde el editor de Apps Script.';
+  }
+
+  emptyEl.classList.remove('hidden');
+}
+
+function _renderRendimiento(data) {
+  document.getElementById('rend-content').classList.remove('hidden');
+
+  const lastUpd = data.lastUpdate || '—';
+  const repDate = data.reportDate || '—';
+  document.getElementById('rend-meta').innerText =
+    'Reporte Enocta: ' + repDate + ' | Procesado: ' + lastUpd;
+
+  const isAdmin      = window._rendIsAdmin;
+  const displayTotal = isAdmin ? (data.totalPending || data.rows.length) : data.rows.length;
+  let totalIP = 0, totalNS = 0;
+  data.rows.forEach(function(r) {
+    if (r.status.toUpperCase() === 'IN PROGRESS') totalIP++;
+    if (r.status.toUpperCase() === 'NOT STARTED') totalNS++;
+  });
+  document.getElementById('rend-total').innerText    = displayTotal;
+  document.getElementById('rend-count-ip').innerText = totalIP;
+  document.getElementById('rend-count-ns').innerText = totalNS;
+  document.getElementById('rend-report-date').innerText =
+    data.reportDate ? 'Reporte correspondiente al: ' + data.reportDate : '';
+
+  if (isAdmin) {
+    const statsGrid = document.getElementById('rend-stats-grid');
+    const stats = data.stats || {};
+    if (statsGrid) statsGrid.innerHTML = Object.keys(stats).sort().map(function(country) {
+      const s    = stats[country];
+      const flag = REND_FLAGS[country.toUpperCase()] || '🏳️';
+      return '<div class="bg-white border border-blue-100 rounded-[1.5rem] p-5 shadow-sm">' +
+        '<div class="flex items-center gap-2 mb-3"><span class="text-xl">' + flag + '</span>' +
+        '<span class="text-[9px] font-black uppercase tracking-widest text-zinc-500">' +
+        (country.length > 14 ? country.substring(0,12)+'…' : country) + '</span></div>' +
+        '<p class="text-3xl font-black text-zinc-900 tracking-tighter">' + s.total + '</p>' +
+        '<div class="flex gap-3 mt-2">' +
+        '<span class="text-[9px] font-black text-amber-500">' + s.inProgress + ' IP</span>' +
+        '<span class="text-[9px] font-black text-rose-500">' + s.notStarted + ' NS</span>' +
+        '</div></div>';
+    }).join('');
+
+    const tiendaSet = [];
+    data.rows.forEach(function(r) { if (tiendaSet.indexOf(r.tienda) === -1) tiendaSet.push(r.tienda); });
+    tiendaSet.sort();
+    const tiendaSel      = document.getElementById('rend-filter-tienda');
+    const currentTienda  = tiendaSel ? tiendaSel.value : 'TODAS';
+    if (tiendaSel) tiendaSel.innerHTML = '<option value="TODAS">Todas</option>' +
+      tiendaSet.map(function(t) { return '<option value="' + t + '"' + (t===currentTienda?' selected':'') + '>' + t + '</option>'; }).join('');
+  }
+
+  window._rendAllRows  = data.rows;
+  window._rendFiltered = data.rows;
+  window._rendPage     = 0;
+  filterRendTable();
+}
+
+function filterRendTable() {
+  const search = (document.getElementById('rend-search')?.value || '').toLowerCase();
+  window._rendFiltered = window._rendAllRows.filter(function(r) {
+    if (!search) return true;
+    return [r.actividad, r.tienda, r.storeDept, r.cargo, r.pais, r.codUsuario]
+      .some(function(v) { return v.toLowerCase().includes(search); });
+  });
+  window._rendPage = 0;
+  _renderRendTable();
+}
+
+function applyRendimientoFilters() { initRendimiento(); }
+
+function rendPage(delta) {
+  const pages = Math.ceil(window._rendFiltered.length / window._rendPageSize);
+  window._rendPage = Math.max(0, Math.min(window._rendPage + delta, pages - 1));
+  _renderRendTable();
+}
+
+function _renderRendTable() {
+  const tbody  = document.getElementById('rend-tbody');
+  const filtered = window._rendFiltered;
+  const page   = window._rendPage;
+  const size   = window._rendPageSize;
+  const start  = page * size;
+  const slice  = filtered.slice(start, start + size);
+  const total  = filtered.length;
+  const pages  = Math.ceil(total / size);
+
+  const countEl = document.getElementById('rend-table-count');
+  const pageEl  = document.getElementById('rend-page-info');
+  const prevBtn = document.getElementById('rend-btn-prev');
+  const nextBtn = document.getElementById('rend-btn-next');
+  if (countEl) countEl.innerText = total.toLocaleString() + ' actividades';
+  if (pageEl)  pageEl.innerText  = 'Página ' + (page+1) + ' de ' + (pages||1) + ' — ' + total.toLocaleString() + ' registros';
+  if (prevBtn) prevBtn.disabled  = page === 0;
+  if (nextBtn) nextBtn.disabled  = page >= pages - 1;
+
+  if (!tbody) return;
+  if (slice.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="px-6 py-8 text-center text-zinc-400 text-[11px]">Sin resultados.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = slice.map(function(r) {
+    const flag        = REND_FLAGS[r.pais.toUpperCase()] || '';
+    const statusClass = r.status.toUpperCase() === 'IN PROGRESS'
+      ? 'bg-amber-50 text-amber-600 border-amber-200'
+      : 'bg-rose-50 text-rose-600 border-rose-200';
+    const rowId = 'rend-row-' + btoa(encodeURIComponent(r.codUsuario + '||' + r.actividad)).replace(/=/g,'');
+    return '<tr id="' + rowId + '" class="hover:bg-blue-50/30 transition-colors">' +
+      '<td class="px-4 py-3 text-center">' +
+        '<button onclick="checkRendimiento(\'' + rowId + '\',\'' + r.codUsuario.replace(/'/g,"\\'") + '\',\'' + r.actividad.replace(/'/g,"\\'") + '\')" ' +
+          'class="w-7 h-7 rounded-lg border-2 border-blue-200 hover:border-emerald-400 hover:bg-emerald-50 flex items-center justify-center transition-all group" title="Marcar como completado">' +
+          '<span class="material-symbols-outlined text-[14px] text-zinc-300 group-hover:text-emerald-500">check</span>' +
+        '</button>' +
+      '</td>' +
+      '<td class="px-6 py-3 text-[11px] font-bold text-zinc-700 whitespace-nowrap">' + flag + ' ' + r.pais + '</td>' +
+      '<td class="px-6 py-3 font-black text-[#1565C0] text-[11px] whitespace-nowrap">' + r.tienda + '</td>' +
+      '<td class="px-6 py-3 text-[11px] text-zinc-600 max-w-[180px] truncate" title="' + r.storeDept + '">' + r.storeDept + '</td>' +
+      '<td class="px-6 py-3 text-[11px] text-zinc-800 max-w-[240px]" style="white-space:normal;line-height:1.4">' + r.actividad + '</td>' +
+      '<td class="px-6 py-3 text-center"><span class="inline-block px-2 py-0.5 rounded-full border text-[9px] font-black uppercase ' + statusClass + '">' + r.status + '</span></td>' +
+      '<td class="px-6 py-3 text-[11px] text-zinc-600 font-mono">' + (r.codUsuario || '—') + '</td>' +
+      '<td class="px-6 py-3 text-[10px] text-zinc-500 max-w-[160px] truncate" title="' + r.cargo + '">' + (r.cargo||'—') + '</td>' +
+      '<td class="px-6 py-3 text-[10px] text-zinc-400 whitespace-nowrap">' + (r.fechaRegistro||'—') + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+function checkRendimiento(rowId, codUsuario, actividad) {
+  const row = document.getElementById(rowId);
+  if (!row) return;
+  row.style.opacity = '0.4';
+  row.style.pointerEvents = 'none';
+  const btn = row.querySelector('button');
+  if (btn) btn.innerHTML = '<span class="material-symbols-outlined text-[14px] text-blue-400 animate-spin">progress_activity</span>';
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (res && res.success) {
+        row.style.transition = 'opacity 0.4s, background 0.4s';
+        row.style.background = '#f0fdf4';
+        row.style.opacity    = '1';
+        if (btn) btn.innerHTML = '<span class="material-symbols-outlined text-[14px] text-emerald-500">check_circle</span>';
+        setTimeout(function() {
+          row.style.opacity = '0';
+          setTimeout(function() {
+            window._rendAllRows  = window._rendAllRows.filter(function(r) {
+              return !(r.codUsuario === codUsuario && r.actividad === actividad);
+            });
+            window._rendFiltered = window._rendFiltered.filter(function(r) {
+              return !(r.codUsuario === codUsuario && r.actividad === actividad);
+            });
+            _renderRendTable();
+          }, 400);
+        }, 800);
+      } else {
+        row.style.opacity = '1';
+        row.style.pointerEvents = 'auto';
+        if (btn) btn.innerHTML = '<span class="material-symbols-outlined text-[14px] text-red-400">error</span>';
+        alert('Error: ' + ((res && res.message) || 'No se pudo marcar como completado.'));
+      }
+    })
+    .withFailureHandler(function(err) {
+      row.style.opacity = '1';
+      row.style.pointerEvents = 'auto';
+      if (btn) btn.innerHTML = '<span class="material-symbols-outlined text-[14px] text-red-400">error</span>';
+      alert('Error de conexión: ' + err.message);
+    })
+    .markRendimientoCompleted(codUsuario, actividad);
+}
+
+function exportRendimientoCSV() {
+  const rows = window._rendFiltered;
+  if (!rows || rows.length === 0) { alert('No hay datos para exportar.'); return; }
+  const headers = ['País','Tienda','Store/Dept','Actividad','Status','Score','Cargo','F.Registro','Última Entrada','Cód.Usuario'];
+  const csv = [headers.join(',')].concat(rows.map(function(r) {
+    return [r.pais, r.tienda, '"'+r.storeDept+'"', '"'+r.actividad+'"', r.status, r.score,
+            '"'+r.cargo+'"', r.fechaRegistro, r.ultimaEntrada, r.codUsuario].join(',');
+  })).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'enocta_rendimiento_' + new Date().toISOString().substring(0,10) + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ─── STORE FULLNESS / RENDIMIENTO ────────────────────────────────────────────
+window._fullnessData = null;
+window._fullnessSelectedStore = '';
+window._fullnessDrillCache = {};
+window._fullnessDrillSort = {};
+window._fullnessDrillRenderState = {};
+
+function initFullness() {
+  const loading = document.getElementById('fullness-loading');
+  const content = document.getElementById('fullness-content');
+  const empty = document.getElementById('fullness-empty');
+  if (loading) loading.classList.remove('hidden');
+  if (content) content.classList.add('hidden');
+  if (empty) empty.classList.add('hidden');
+
+  const role = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+  const activeStore = (sessionStorage.getItem('activeStore') || '').trim().toUpperCase();
+  const switcher = document.getElementById('fullness-store-switcher');
+  const select = document.getElementById('fullness-store-select');
+  const showSwitcher = role === 'ADMIN' || role === 'RETAIL';
+
+  if (switcher) switcher.classList.toggle('hidden', !showSwitcher);
+  if (showSwitcher && select && select.options.length === 0) {
+    loadStoresForCurrentUser(function(stores) {
+      select.innerHTML = '';
+      let matched = false;
+      stores.forEach(function(store) {
+        const opt = document.createElement('option');
+        opt.value = opt.text = store;
+        if (store.toUpperCase() === activeStore) {
+          opt.selected = true;
+          matched = true;
+        }
+        select.appendChild(opt);
+      });
+      if (!matched && stores.length > 0) {
+        select.value = stores[0];
+        window._fullnessSelectedStore = stores[0];
+      } else {
+        window._fullnessSelectedStore = select.value || activeStore;
+      }
+      loadFullnessData(window._fullnessSelectedStore);
+    });
+    return;
+  }
+
+  window._fullnessSelectedStore = showSwitcher && select ? (select.value || activeStore) : activeStore;
+  loadFullnessData(window._fullnessSelectedStore);
+}
+
+function switchFullnessStore(store) {
+  if (!isRetailStoreAllowed(store)) return alert('Esta ubicación no pertenece a tu país asignado.');
+  window._fullnessSelectedStore = store;
+  sessionStorage.setItem('activeStore', store);
+  loadFullnessData(store);
+}
+
+function loadFullnessData(store, date) {
+  const title = document.getElementById('fullness-title');
+  if (title) title.innerText = 'Rendimiento — ' + (store || 'Tienda');
+  window._fullnessDrillCache = {};
+  window._fullnessDrillSort = {};
+  window._fullnessDrillRenderState = {};
+
+  google.script.run
+    .withSuccessHandler(function(data) {
+      window._fullnessData = data || {};
+      renderFullnessData(data || {});
+    })
+    .withFailureHandler(function(err) {
+      showFullnessEmpty('Error al cargar TEST_Fullness: ' + err.message);
+      console.error('Fullness error:', err);
+    })
+    .getStoreFullnessDashboardData({ store: store, date: date || '' });
+}
+
+function renderFullnessData(data) {
+  const loading = document.getElementById('fullness-loading');
+  if (loading) loading.classList.add('hidden');
+
+  if (!data || !data.rows || data.rows.length === 0) {
+    showFullnessEmpty(data && data.error ? data.error : 'No hay registros en TEST_Fullness para la tienda conectada.');
+    return;
+  }
+
+  const content = document.getElementById('fullness-content');
+  if (content) content.classList.remove('hidden');
+
+  const meta = document.getElementById('fullness-meta');
+  if (meta) meta.innerText = 'Fuente: ' + (data.sourceSheet || 'TEST_Fullness') + ' | Fecha: ' + (data.selectedDate || '—');
+
+  const stats = data.stats || {};
+  setText('fullness-rayon-total', formatPct(stats.totalRayonOcc));
+  setText('fullness-actual-total', formatPct(stats.totalActualOcc));
+  setText('fullness-avg-occ', formatPct(stats.totalRayonOcc));
+  setText('fullness-full-count', formatPct(stats.totalActualOcc));
+  setText('fullness-rayon-stock', formatFullnessNum(stats.rayonStock || 0));
+  setText('fullness-cover', formatFullnessDecimal(stats.avgStoreCover || 0));
+  setText('fullness-row-count', (stats.totalRows || data.rows.length) + ' registros');
+
+  renderFullnessStatusCards(stats.byStatus || {});
+  renderFullnessTable(data.rows || []);
+}
+
+function renderFullnessStatusCards(byStatus) {
+  const grid = document.getElementById('fullness-status-grid');
+  if (!grid) return;
+  const statuses = ['Full Occupancy', 'Empty-Available Stock', 'Empty-Unavailable Stock'];
+  grid.innerHTML = statuses.map(function(status) {
+    const count = byStatus[status] || 0;
+    const color = fullnessStatusClass(status);
+    return '<div class="bg-white border border-blue-100 rounded-[1.5rem] p-5 shadow-sm">' +
+      '<div class="flex items-center justify-between gap-3">' +
+      '<span class="text-[10px] font-black uppercase tracking-widest text-zinc-400">' + status + '</span>' +
+      '<span class="w-3 h-3 rounded-full ' + color.dot + '"></span>' +
+      '</div>' +
+      '<p class="text-3xl font-black text-zinc-900 tracking-tighter mt-3">' + count + '</p>' +
+      '</div>';
+  }).join('');
+}
+
+function renderFullnessTable(rows) {
+  const tbody = document.getElementById('fullness-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = rows.map(function(r, idx) {
+    const color = fullnessStatusClass(r.status);
+    const rowKey = buildFullnessDrillKey(r, idx);
+    return '<tr id="fullness-row-' + rowKey + '" class="hover:bg-blue-50/30 transition-colors cursor-pointer" onclick="toggleFullnessDrilldown(\'' + rowKey + '\')">' +
+      '<td class="px-6 py-3 font-black text-[#1565C0] text-[11px] whitespace-nowrap">' +
+        '<span id="fullness-chevron-' + rowKey + '" class="material-symbols-outlined align-middle text-[16px] text-zinc-400 mr-2">chevron_right</span>' +
+        '<span data-store="' + safeAttr(r.codigo) + '" data-group="' + safeAttr(r.merchGroup) + '" data-age="' + safeAttr(r.merchAgeGroup) + '">' + safeText(r.merchGroup) + '</span>' +
+      '</td>' +
+      '<td class="px-6 py-3 font-black text-zinc-800 text-[11px] whitespace-nowrap">' + safeText(r.merchAgeGroup) + '</td>' +
+      '<td class="px-6 py-3"><span class="inline-block px-2 py-0.5 rounded-full border text-[9px] font-black uppercase ' + color.badge + '">' + safeText(r.status) + '</span></td>' +
+      '<td class="px-6 py-3 text-right text-[11px] font-bold text-zinc-700">' + formatPct(r.rayonOcc) + '</td>' +
+      '<td class="px-6 py-3 text-right text-[11px] font-bold text-zinc-700">' + formatPct(r.actualOcc) + '</td>' +
+      '<td class="px-6 py-3 text-right text-[11px] font-bold text-zinc-700">' + formatFullnessNum(r.rayonStock) + '</td>' +
+      '<td class="px-6 py-3 text-right text-[11px] font-bold text-zinc-700">' + formatFullnessNum(r.warehouseStock) + '</td>' +
+      '<td class="px-6 py-3 text-right text-[11px] font-bold text-zinc-700">' + formatFullnessNum(r.last7Days) + '</td>' +
+      '<td class="px-6 py-3 text-right text-[11px] font-black text-zinc-900">' + formatFullnessDecimal(r.storeCover) + '</td>' +
+      '</tr>' +
+      '<tr id="fullness-drill-' + rowKey + '" class="hidden bg-blue-50/20"><td colspan="9" class="px-6 py-0"></td></tr>';
+  }).join('');
+}
+
+function buildFullnessDrillKey(row, idx) {
+  return btoa(encodeURIComponent([row.codigo, row.merchGroup, row.merchAgeGroup, idx].join('||'))).replace(/=/g, '');
+}
+
+function toggleFullnessDrilldown(rowKey) {
+  const row = document.getElementById('fullness-row-' + rowKey);
+  const drill = document.getElementById('fullness-drill-' + rowKey);
+  const chevron = document.getElementById('fullness-chevron-' + rowKey);
+  if (!row || !drill) return;
+
+  if (!drill.classList.contains('hidden')) {
+    drill.classList.add('hidden');
+    if (chevron) chevron.innerText = 'chevron_right';
+    return;
+  }
+
+  if (chevron) chevron.innerText = 'expand_more';
+  drill.classList.remove('hidden');
+  drill.children[0].innerHTML = '<div class="py-5 text-center text-[10px] font-black uppercase tracking-widest text-zinc-400">Cargando detalle...</div>';
+
+  const marker = row.querySelector('[data-store]');
+  const store = marker?.dataset.store || window._fullnessSelectedStore || '';
+  const group = marker?.dataset.group || '';
+  const age = marker?.dataset.age || '';
+  const cacheKey = [store, group, age].join('|');
+  const domKey = buildFullnessDomKey(cacheKey);
+
+  if (window._fullnessDrillCache[cacheKey]) {
+    drill.children[0].innerHTML = renderFullnessDrilldown(window._fullnessDrillCache[cacheKey], group, age, domKey);
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(function(data) {
+      window._fullnessDrillCache[cacheKey] = data || { rows: [] };
+      drill.children[0].innerHTML = renderFullnessDrilldown(data || { rows: [] }, group, age, domKey);
+    })
+    .withFailureHandler(function(err) {
+      drill.children[0].innerHTML = '<div class="py-5 text-center text-[11px] font-bold text-rose-500">No se pudo cargar el detalle: ' + safeText(err.message) + '</div>';
+    })
+    .getStoreFullnessDrilldown(store, group, age);
+}
+
+function renderFullnessDrilldown(data, group, age, domKey) {
+  const rows = (data.rows || []).filter(hasUsefulFullnessMetricClient);
+  if (rows.length === 0) {
+    return '<div class="py-5 text-center text-[11px] font-bold text-zinc-400">Sin detalle en Master para ' + safeText(group) + ' / ' + safeText(age) + '.</div>';
+  }
+  const safeDomKey = domKey || buildFullnessDomKey([group, age].join('|'));
+  const hierarchy = buildFullnessHierarchy(rows);
+
+  return '<div id="fullness-drill-content-' + safeAttr(safeDomKey) + '" class="py-5">' +
+    '<div class="mb-3 flex items-center justify-between">' +
+      '<span class="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Brand Age ' + safeText(group) + ' / ' + safeText(age) + '</span>' +
+      '<span class="text-[10px] font-bold text-zinc-400">' + rows.length + ' registros</span>' +
+    '</div>' +
+    '<div class="overflow-x-auto rounded-2xl border border-blue-100 bg-white">' +
+      '<table class="w-full text-left border-collapse">' +
+        '<thead><tr class="text-zinc-400 text-[9px] uppercase font-black tracking-widest border-b border-blue-50">' +
+          '<th class="px-4 py-3">Brand Age</th>' +
+          '<th class="px-4 py-3">Status</th>' +
+          '<th class="px-4 py-3 text-right">Rayon Occ</th>' +
+          '<th class="px-4 py-3 text-right">Actual Occ</th>' +
+          '<th class="px-4 py-3 text-right">Rayon Stock</th>' +
+          '<th class="px-4 py-3 text-right">Warehouse</th>' +
+          '<th class="px-4 py-3 text-right">Registros</th>' +
+        '</tr></thead>' +
+        '<tbody class="divide-y divide-blue-50">' +
+          hierarchy.map(function(brand, idx) {
+            return renderFullnessBrandRow(brand, safeDomKey, idx);
+          }).join('') +
+        '</tbody>' +
+      '</table>' +
+    '</div>' +
+  '</div>';
+}
+
+function renderFullnessBrandRow(brand, domKey, idx) {
+  const key = domKey + '-brand-' + idx;
+  const color = fullnessStatusClass(brand.status);
+  return '<tr class="hover:bg-blue-50/30 cursor-pointer" onclick="toggleFullnessNested(\'' + safeAttr(key) + '\')">' +
+      '<td class="px-4 py-3 text-[10px] font-black text-[#1565C0] whitespace-nowrap">' +
+        '<span id="fullness-nested-icon-' + safeAttr(key) + '" class="material-symbols-outlined align-middle text-[15px] text-zinc-400 mr-2">chevron_right</span>' +
+        safeText(brand.label) +
+      '</td>' +
+      '<td class="px-4 py-3"><span class="inline-block px-2 py-0.5 rounded-full border text-[8px] font-black uppercase ' + color.badge + '">' + safeText(brand.status) + '</span></td>' +
+      '<td class="px-4 py-3 text-right text-[10px] font-bold text-zinc-700">' + formatPct(brand.rayonOcc) + '</td>' +
+      '<td class="px-4 py-3 text-right text-[10px] font-bold text-zinc-700">' + formatPct(brand.actualOcc) + '</td>' +
+      '<td class="px-4 py-3 text-right text-[10px] font-bold text-zinc-700">' + formatFullnessNum(brand.rayonStock) + '</td>' +
+      '<td class="px-4 py-3 text-right text-[10px] font-bold text-zinc-700">' + formatFullnessNum(brand.warehouseStock) + '</td>' +
+      '<td class="px-4 py-3 text-right text-[10px] font-black text-zinc-500">' + brand.count + '</td>' +
+    '</tr>' +
+    '<tr id="fullness-nested-' + safeAttr(key) + '" class="hidden bg-blue-50/20">' +
+      '<td colspan="7" class="px-4 py-0">' + renderFullnessSubGroups(brand.subGroups, key) + '</td>' +
+    '</tr>';
+}
+
+function renderFullnessSubGroups(subGroups, parentKey) {
+  return '<div class="py-3 pl-5">' +
+    '<table class="w-full text-left border-collapse bg-white border border-blue-50 rounded-xl overflow-hidden">' +
+      '<thead><tr class="text-zinc-400 text-[8px] uppercase font-black tracking-widest border-b border-blue-50">' +
+        '<th class="px-4 py-2">Sub Group</th>' +
+        '<th class="px-4 py-2">Status</th>' +
+        '<th class="px-4 py-2 text-right">Rayon Occ</th>' +
+        '<th class="px-4 py-2 text-right">Actual Occ</th>' +
+        '<th class="px-4 py-2 text-right">Rayon Stock</th>' +
+        '<th class="px-4 py-2 text-right">Warehouse</th>' +
+        '<th class="px-4 py-2 text-right">Registros</th>' +
+      '</tr></thead>' +
+      '<tbody class="divide-y divide-blue-50">' +
+        subGroups.map(function(sub, idx) {
+          const key = parentKey + '-sub-' + idx;
+          const color = fullnessStatusClass(sub.status);
+          const hasCategories = sub.categories && sub.categories.length > 0;
+          return '<tr class="hover:bg-blue-50/30' + (hasCategories ? ' cursor-pointer' : '') + '" onclick="event.stopPropagation();' + (hasCategories ? ' toggleFullnessNested(\'' + safeAttr(key) + '\')' : '') + '">' +
+              '<td class="px-4 py-2 text-[10px] font-black text-zinc-800 whitespace-nowrap">' +
+                '<span id="fullness-nested-icon-' + safeAttr(key) + '" class="material-symbols-outlined align-middle text-[15px] text-zinc-400 mr-2">' + (hasCategories ? 'chevron_right' : 'remove') + '</span>' +
+                safeText(sub.label) +
+              '</td>' +
+              '<td class="px-4 py-2"><span class="inline-block px-2 py-0.5 rounded-full border text-[8px] font-black uppercase ' + color.badge + '">' + safeText(sub.status) + '</span></td>' +
+              '<td class="px-4 py-2 text-right text-[10px] font-bold text-zinc-700">' + formatPct(sub.rayonOcc) + '</td>' +
+              '<td class="px-4 py-2 text-right text-[10px] font-bold text-zinc-700">' + formatPct(sub.actualOcc) + '</td>' +
+              '<td class="px-4 py-2 text-right text-[10px] font-bold text-zinc-700">' + formatFullnessNum(sub.rayonStock) + '</td>' +
+              '<td class="px-4 py-2 text-right text-[10px] font-bold text-zinc-700">' + formatFullnessNum(sub.warehouseStock) + '</td>' +
+              '<td class="px-4 py-2 text-right text-[10px] font-black text-zinc-500">' + sub.count + '</td>' +
+            '</tr>' +
+            '<tr id="fullness-nested-' + safeAttr(key) + '" class="hidden bg-white">' +
+              '<td colspan="7" class="px-4 py-0">' + renderFullnessCategories(sub.categories) + '</td>' +
+            '</tr>';
+        }).join('') +
+      '</tbody>' +
+    '</table>' +
+  '</div>';
+}
+
+function renderFullnessCategories(categories) {
+  return '<div class="py-3 pl-6">' +
+    '<table class="w-full text-left border-collapse bg-zinc-50/40 border border-zinc-100 rounded-xl overflow-hidden">' +
+      '<thead><tr class="text-zinc-400 text-[8px] uppercase font-black tracking-widest border-b border-zinc-100">' +
+        '<th class="px-4 py-2">Categoría</th>' +
+        '<th class="px-4 py-2">Status</th>' +
+        '<th class="px-4 py-2 text-right">Rayon Occ</th>' +
+        '<th class="px-4 py-2 text-right">Actual Occ</th>' +
+        '<th class="px-4 py-2 text-right">Rayon Stock</th>' +
+        '<th class="px-4 py-2 text-right">Warehouse</th>' +
+      '</tr></thead>' +
+      '<tbody class="divide-y divide-zinc-100">' +
+        categories.map(function(cat) {
+          const color = fullnessStatusClass(cat.status);
+          return '<tr class="hover:bg-white">' +
+            '<td class="px-4 py-2 text-[10px] text-zinc-700 min-w-[180px]">' + safeText(cat.label) + '</td>' +
+            '<td class="px-4 py-2"><span class="inline-block px-2 py-0.5 rounded-full border text-[8px] font-black uppercase ' + color.badge + '">' + safeText(cat.status) + '</span></td>' +
+            '<td class="px-4 py-2 text-right text-[10px] font-bold text-zinc-700">' + formatPct(cat.rayonOcc) + '</td>' +
+            '<td class="px-4 py-2 text-right text-[10px] font-bold text-zinc-700">' + formatPct(cat.actualOcc) + '</td>' +
+            '<td class="px-4 py-2 text-right text-[10px] font-bold text-zinc-700">' + formatFullnessNum(cat.rayonStock) + '</td>' +
+            '<td class="px-4 py-2 text-right text-[10px] font-bold text-zinc-700">' + formatFullnessNum(cat.warehouseStock) + '</td>' +
+          '</tr>';
+        }).join('') +
+      '</tbody>' +
+    '</table>' +
+  '</div>';
+}
+
+function toggleFullnessNested(key) {
+  const row = document.getElementById('fullness-nested-' + key);
+  const icon = document.getElementById('fullness-nested-icon-' + key);
+  if (!row) return;
+  const isOpen = !row.classList.contains('hidden');
+  row.classList.toggle('hidden', isOpen);
+  if (icon) icon.innerText = isOpen ? 'chevron_right' : 'expand_more';
+}
+
+function buildFullnessHierarchy(rows) {
+  const brandMap = new Map();
+  rows.forEach(function(row) {
+    const brandKey = String(row.merchBrandAgeGroup || '—').trim() || '—';
+    const subKey = String(row.merchSubGroup || '—').trim() || '—';
+    if (!brandMap.has(brandKey)) brandMap.set(brandKey, { label: brandKey, rows: [], subMap: new Map() });
+    const brand = brandMap.get(brandKey);
+    brand.rows.push(row);
+    if (!isFullnessBrandTotalRow(row, brandKey) && !isFullnessBlankLabel(subKey)) {
+      if (!brand.subMap.has(subKey)) brand.subMap.set(subKey, { label: subKey, rows: [] });
+      brand.subMap.get(subKey).rows.push(row);
+    }
+  });
+
+  return Array.from(brandMap.values()).map(function(brand) {
+    const brandTotalRow = findFullnessBrandTotalRow(brand.rows, brand.label);
+    const total = aggregateFullnessRows(brand.rows, brandTotalRow);
+    total.label = brand.label;
+    total.subGroups = Array.from(brand.subMap.values()).map(function(sub) {
+      const subTotalRow = findFullnessSubTotalRow(sub.rows, sub.label);
+      const subTotal = aggregateFullnessRows(sub.rows, subTotalRow);
+      subTotal.label = sub.label;
+      subTotal.categories = sub.rows
+        .filter(function(row) {
+          return !isFullnessBlankLabel(row.category) && !isFullnessSameLabel(row.category, sub.label);
+        })
+        .slice()
+        .sort(_sortFullnessHierarchyRowsClient)
+        .map(function(row) {
+          return Object.assign({}, row, { label: row.category || '—' });
+        });
+      return subTotal;
+    }).sort(_sortFullnessHierarchyTotalsClient);
+    return total;
+  }).sort(_sortFullnessHierarchyTotalsClient);
+}
+
+function aggregateFullnessRows(rows, preferredRow) {
+  if (preferredRow) {
+    return {
+      count: rows.length,
+      rayonOcc: preferredRow.rayonOcc,
+      actualOcc: preferredRow.actualOcc,
+      rayonStock: preferredRow.rayonStock,
+      warehouseStock: preferredRow.warehouseStock,
+      status: preferredRow.status
+    };
+  }
+
+  const total = { count: rows.length, rayonOcc: '', actualOcc: '', rayonStock: 0, warehouseStock: 0, status: '' };
+  let rayonOccSum = 0, rayonOccCount = 0, actualOccSum = 0, actualOccCount = 0;
+  const statusCounts = {};
+  rows.forEach(function(row) {
+    const rayonOcc = parseFullnessSortNumber(row.rayonOcc);
+    const actualOcc = parseFullnessSortNumber(row.actualOcc);
+    const rayonStock = parseFullnessSortNumber(row.rayonStock);
+    const warehouseStock = parseFullnessSortNumber(row.warehouseStock);
+    if (rayonOcc !== null) { rayonOccSum += rayonOcc; rayonOccCount++; }
+    if (actualOcc !== null) { actualOccSum += actualOcc; actualOccCount++; }
+    if (rayonStock !== null) total.rayonStock += rayonStock;
+    if (warehouseStock !== null) total.warehouseStock += warehouseStock;
+    const status = String(row.status || '').trim();
+    if (status) statusCounts[status] = (statusCounts[status] || 0) + 1;
+  });
+  total.rayonOcc = rayonOccCount ? rayonOccSum / rayonOccCount : '';
+  total.actualOcc = actualOccCount ? actualOccSum / actualOccCount : '';
+  total.status = pickFullnessStatus(statusCounts);
+  return total;
+}
+
+function isFullnessSameLabel(a, b) {
+  return String(a || '').trim().toUpperCase() === String(b || '').trim().toUpperCase();
+}
+
+function isFullnessBlankLabel(value) {
+  const text = String(value || '').trim();
+  return !text || text === '—' || text === '-';
+}
+
+function findFullnessBrandTotalRow(rows, brandLabel) {
+  return rows.find(function(row) {
+    return isFullnessSameLabel(row.merchBrandAgeGroup, brandLabel) &&
+           isFullnessBlankLabel(row.merchSubGroup) &&
+           isFullnessBlankLabel(row.category);
+  }) || rows.find(function(row) {
+    return isFullnessSameLabel(row.merchBrandAgeGroup, brandLabel) &&
+           isFullnessSameLabel(row.merchSubGroup, brandLabel) &&
+           isFullnessBlankLabel(row.category);
+  }) || rows.find(function(row) {
+    return isFullnessSameLabel(row.merchBrandAgeGroup, brandLabel) &&
+           isFullnessSameLabel(row.merchSubGroup, brandLabel) &&
+           isFullnessSameLabel(row.category, brandLabel);
+  });
+}
+
+function findFullnessSubTotalRow(rows, subLabel) {
+  return rows.find(function(row) {
+    return isFullnessSameLabel(row.merchSubGroup, subLabel) &&
+           isFullnessBlankLabel(row.category);
+  }) || rows.find(function(row) {
+    return isFullnessSameLabel(row.merchSubGroup, subLabel) &&
+           isFullnessSameLabel(row.category, subLabel);
+  });
+}
+
+function isFullnessBrandTotalRow(row, brandLabel) {
+  return !!findFullnessBrandTotalRow([row], brandLabel);
+}
+
+function pickFullnessStatus(statusCounts) {
+  const order = ['Empty-Available Stock', 'Empty-Unavailable Stock', 'Full Occupancy'];
+  for (let i = 0; i < order.length; i++) {
+    if (statusCounts[order[i]]) return order[i];
+  }
+  return Object.keys(statusCounts)[0] || '';
+}
+
+function _sortFullnessHierarchyTotalsClient(a, b) {
+  const occA = parseFullnessSortNumber(a.rayonOcc);
+  const occB = parseFullnessSortNumber(b.rayonOcc);
+  if (occA !== null && occB !== null && occA !== occB) return occA - occB;
+  return String(a.label || '').localeCompare(String(b.label || ''), undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function _sortFullnessHierarchyRowsClient(a, b) {
+  return String((a.category || '') + (a.status || '')).localeCompare(String((b.category || '') + (b.status || '')), undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function renderFullnessDrillSortHeader(label, field, domKey, alignRight) {
+  const sort = window._fullnessDrillSort[domKey] || {};
+  const active = sort.field === field;
+  const icon = active ? (sort.direction === 'desc' ? 'arrow_downward' : 'arrow_upward') : 'unfold_more';
+  const activeClass = active ? ' text-[#1565C0]' : '';
+  return '<th class="px-4 py-3' + (alignRight ? ' text-right' : '') + '">' +
+    '<button type="button" onclick="sortFullnessDrilldown(\'' + safeAttr(domKey) + '\', \'' + safeAttr(field) + '\')" ' +
+      'class="inline-flex items-center gap-1 uppercase font-black tracking-widest cursor-pointer select-none hover:text-[#1565C0] transition-colors' + activeClass + (alignRight ? ' justify-end w-full' : '') + '" ' +
+      'title="Ordenar por ' + safeAttr(label) + '">' +
+      '<span>' + safeText(label) + '</span>' +
+      '<span class="material-symbols-outlined text-[13px] leading-none">' + icon + '</span>' +
+    '</button>' +
+  '</th>';
+}
+
+function sortFullnessDrilldown(domKey, field) {
+  const current = window._fullnessDrillSort[domKey] || {};
+  window._fullnessDrillSort[domKey] = {
+    field: field,
+    direction: current.field === field && current.direction === 'asc' ? 'desc' : 'asc'
+  };
+
+  const state = window._fullnessDrillRenderState[domKey];
+  const container = document.getElementById('fullness-drill-content-' + domKey);
+  if (!state || !container) return;
+  container.outerHTML = renderFullnessDrilldown(state.data, state.group, state.age, domKey);
+}
+
+function sortFullnessDrillRows(rows, sort) {
+  if (!sort || !sort.field) return rows;
+  const direction = sort.direction === 'desc' ? -1 : 1;
+  return rows.slice().sort(function(a, b) {
+    return compareFullnessDrillValues(a[sort.field], b[sort.field]) * direction;
+  });
+}
+
+function compareFullnessDrillValues(a, b) {
+  const numA = parseFullnessSortNumber(a);
+  const numB = parseFullnessSortNumber(b);
+  const emptyA = isEmptyFullnessSortValue(a);
+  const emptyB = isEmptyFullnessSortValue(b);
+  if (emptyA && !emptyB) return 1;
+  if (!emptyA && emptyB) return -1;
+  if (numA !== null && numB !== null) return numA - numB;
+  return String(a || '').toLowerCase().localeCompare(String(b || '').toLowerCase(), undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function isEmptyFullnessSortValue(value) {
+  const text = String(value || '').trim();
+  return text === '' || text === '—' || text === '-';
+}
+
+function parseFullnessSortNumber(value) {
+  if (value === null || value === undefined || isEmptyFullnessSortValue(value)) return null;
+  const n = Number(String(value).replace(/,/g, '').replace('%', '').trim());
+  return isNaN(n) ? null : n;
+}
+
+function buildFullnessDomKey(value) {
+  return btoa(encodeURIComponent(String(value || ''))).replace(/=/g, '');
+}
+
+function hasUsefulFullnessMetricClient(row) {
+  return isPositiveFullnessOccClient(row.rayonOcc) ||
+         isPositiveFullnessOccClient(row.actualOcc);
+}
+
+function isPositiveFullnessOccClient(value) {
+  const n = parseFullnessSortNumber(value);
+  return n !== null && n > 0;
+}
+
+function showFullnessEmpty(message) {
+  const loading = document.getElementById('fullness-loading');
+  const content = document.getElementById('fullness-content');
+  const empty = document.getElementById('fullness-empty');
+  const msg = document.getElementById('fullness-empty-message');
+  if (loading) loading.classList.add('hidden');
+  if (content) content.classList.add('hidden');
+  if (empty) empty.classList.remove('hidden');
+  if (msg) msg.innerText = message;
+}
+
+function fullnessStatusClass(status) {
+  const value = String(status || '').toUpperCase();
+  if (value === 'FULL OCCUPANCY') return { badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' };
+  if (value === 'EMPTY-AVAILABLE STOCK') return { badge: 'bg-rose-50 text-rose-600 border-rose-200', dot: 'bg-rose-500' };
+  if (value === 'EMPTY-UNAVAILABLE STOCK') return { badge: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' };
+  return { badge: 'bg-zinc-50 text-zinc-600 border-zinc-200', dot: 'bg-zinc-400' };
+}
+
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.innerText = value;
+}
+
+function safeText(value) {
+  return String(value || '—').replace(/[&<>"']/g, function(ch) {
+    return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[ch];
+  });
+}
+
+function safeAttr(value) {
+  return String(value || '').replace(/[&<>"']/g, function(ch) {
+    return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[ch];
+  });
+}
+
+function formatPct(value) {
+  if (value === '' || value === null || value === undefined) return '—';
+  const n = Number(value);
+  if (isNaN(n)) return safeText(value);
+  return n.toFixed(n % 1 === 0 ? 0 : 1) + '%';
+}
+
+function formatFullnessNum(value) {
+  if (value === '' || value === null || value === undefined) return '—';
+  const n = Number(value);
+  if (isNaN(n)) return safeText(value);
+  return Math.round(n).toLocaleString();
+}
+
+function formatFullnessDecimal(value) {
+  if (value === '' || value === null || value === undefined) return '—';
+  const n = Number(value);
+  if (isNaN(n)) return safeText(value);
+  return n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+}
+
+// ─── DESPACHOS ────────────────────────────────────────────────────────────────
+let _despData       = [];
+let _activeDespacho = null;
+let _pendingInvoice = null;
+let _pendingStore   = null;
+let _despSelectedStore = '';
+let _despAdminMode = false;
+
+function initDespachos() {
+  const role = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+  const store = sessionStorage.getItem('activeStore') || '';
+  const isAdmin = role === 'ADMIN';
+  if (isAdmin) ensureDespAdminDashboardDom();
+  const nameEl = document.getElementById('despStoreName');
+  const countryFilter = document.getElementById('despCountryFilter');
+  const storeFilter = document.getElementById('despStoreFilter');
+  const sel = document.getElementById('despSelector');
+  if (!sel) return;
+
+  hideAllDesp();
+  _despData = [];
+  _activeDespacho = null;
+  _pendingInvoice = null;
+  _pendingStore = null;
+  _despSelectedStore = store;
+  _despAdminMode = isAdmin;
+
+  const standardHeader = document.getElementById('despStandardHeader');
+  const adminDashboard = document.getElementById('despAdminDashboard');
+  if (standardHeader) {
+    standardHeader.classList.toggle('hidden', _despAdminMode);
+    standardHeader.style.display = _despAdminMode ? 'none' : '';
+  }
+  if (adminDashboard) {
+    adminDashboard.classList.toggle('hidden', !_despAdminMode);
+    adminDashboard.style.display = _despAdminMode ? 'block' : 'none';
+  }
+
+  if (isAdmin) {
+    if (nameEl) nameEl.textContent = 'REGIONAL';
+    if (countryFilter) countryFilter.classList.remove('hidden');
+    if (storeFilter) storeFilter.classList.remove('hidden');
+    if (countryFilter) countryFilter.value = '';
+    if (storeFilter) {
+      storeFilter.innerHTML = '<option value="__ALL__">Todas las tiendas</option>';
+      storeFilter.value = '__ALL__';
+    }
+    populateDespAdminStoreProxy([]);
+    loadDespachosForStore('__ALL__');
+    return;
+  }
+
+  if (countryFilter) countryFilter.classList.add('hidden');
+  if (storeFilter) storeFilter.classList.add('hidden');
+  if (nameEl) nameEl.textContent = store;
+  loadDespachosForStore(store);
+}
+
+function ensureDespAdminDashboardDom() {
+  if (document.getElementById('despAdminDashboard')) return;
+  const container = document.getElementById('despachos-container');
+  if (!container) return;
+  const html =
+    '<div id="despAdminDashboard" class="space-y-8">' +
+      '<div class="rounded-[28px] bg-white border border-blue-50 shadow-sm p-6 lg:p-8">' +
+        '<div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-end">' +
+          '<label class="block"><span class="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.18em] mb-3">Marca</span>' +
+          '<select id="despBrandFilter" disabled class="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-4 font-black text-sm text-zinc-900 shadow-sm"><option>LC Waikiki</option></select></label>' +
+          '<button onclick="loadDespachosForStore(_despSelectedStore || \'__ALL__\', document.getElementById(\'despCountryFilter\')?.value || \'\')" class="h-[56px] rounded-2xl bg-zinc-900 text-white font-black uppercase tracking-[0.16em] text-xs hover:bg-[#0D47A1] transition-colors flex items-center justify-center gap-2"><span class="material-symbols-outlined text-base">local_shipping</span>Ver Despachos</button>' +
+        '</div>' +
+        '<div class="mt-7 pt-7 border-t border-zinc-100 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 items-end">' +
+          '<label class="block"><span class="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.18em] mb-3">Despacho</span><select id="despAdminDespFilter" onchange="renderDespAdminDashboard()" class="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 font-black text-sm text-zinc-900 shadow-sm"><option value="__ALL_DESP__">Todos los despachos</option></select></label>' +
+          '<label class="block"><span class="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.18em] mb-3">País</span><select id="despAdminCountryProxy" onchange="syncDespAdminCountry(this.value)" class="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 font-black text-sm text-zinc-900 shadow-sm"><option value="">Todos los países</option><option value="Costa Rica">🇨🇷 Costa Rica</option><option value="Curacao">🇨🇼 Curacao</option><option value="Dominican Republic">🇩🇴 Dominican Republic</option><option value="El Salvador">🇸🇻 El Salvador</option><option value="Guatemala">🇬🇹 Guatemala</option><option value="Panamá">🇵🇦 Panamá</option><option value="Venezuela">🇻🇪 Venezuela</option></select></label>' +
+          '<label class="block"><span class="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.18em] mb-3">Tienda</span><select id="despAdminStoreProxy" onchange="syncDespAdminStore(this.value)" class="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 font-black text-sm text-zinc-900 shadow-sm"><option value="__ALL__">Todas las tiendas</option></select></label>' +
+          '<label class="block"><span class="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.18em] mb-3">Status</span><select id="despStatusFilter" onchange="renderDespAdminDashboard()" class="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 font-black text-sm text-zinc-900 shadow-sm"><option value="PENDIENTE">Pendiente</option><option value="TODOS">Todos</option><option value="RECIBIDO">Recibido</option></select></label>' +
+          '<p id="despAdminCount" class="text-[11px] font-black text-zinc-400 uppercase tracking-[0.16em] whitespace-nowrap pb-3">0 desp. · 0 invoices</p>' +
+        '</div>' +
+      '</div>' +
+      '<div id="despAdminKpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>' +
+      '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">' +
+        '<div class="rounded-[24px] bg-white border border-blue-50 shadow-sm p-6"><p class="text-[11px] font-black text-[#1565C0] uppercase tracking-[0.16em]">Contribución por unidades</p><h3 class="text-xl font-black text-zinc-900 uppercase tracking-tight mb-5">Merch Group</h3><div id="despMerchChart" class="min-h-[220px]"></div></div>' +
+        '<div class="rounded-[24px] bg-white border border-blue-50 shadow-sm p-6"><p class="text-[11px] font-black text-[#1565C0] uppercase tracking-[0.16em]">Contribución por unidades</p><h3 class="text-xl font-black text-zinc-900 uppercase tracking-tight mb-5">Season</h3><div id="despSeasonChart" class="min-h-[220px]"></div></div>' +
+      '</div>' +
+      '<div id="despAdminList" class="space-y-5"></div>' +
+    '</div>';
+  const standardHeader = document.getElementById('despStandardHeader');
+  if (standardHeader) standardHeader.insertAdjacentHTML('afterend', html);
+  else container.insertAdjacentHTML('afterbegin', html);
+}
+
+function onDespCountryChange() {
+  const country = document.getElementById('despCountryFilter')?.value || '';
+  const storeFilter = document.getElementById('despStoreFilter');
+  const sel = document.getElementById('despSelector');
+  const nameEl = document.getElementById('despStoreName');
+  hideAllDesp();
+  _despData = [];
+  _activeDespacho = null;
+  _despSelectedStore = '';
+  if (nameEl) nameEl.textContent = country || 'REGIONAL';
+  if (!storeFilter) return;
+  if (!country) {
+    storeFilter.innerHTML = '<option value="__ALL__">Todas las tiendas</option>';
+    storeFilter.value = '__ALL__';
+    populateDespAdminStoreProxy([]);
+    loadDespachosForStore('__ALL__');
+    return;
+  }
+  storeFilter.innerHTML = '<option value="__ALL__">Todas las tiendas</option><option value="" disabled>Cargando tiendas...</option>';
+  storeFilter.value = '__ALL__';
+  const storeProxy = document.getElementById('despAdminStoreProxy');
+  if (storeProxy) {
+    storeProxy.innerHTML = '<option value="__ALL__">Todas las tiendas</option>';
+    storeProxy.value = '__ALL__';
+  }
+  loadDespachosForStore('__ALL__', country);
+
+  google.script.run
+    .withSuccessHandler(function(stores) {
+      storeFilter.innerHTML = '<option value="__ALL__">Todas las tiendas</option>';
+      populateDespAdminStoreProxy(stores || []);
+      (stores || []).forEach(function(store) {
+        const opt = document.createElement('option');
+        opt.value = store;
+        opt.text = store;
+        storeFilter.appendChild(opt);
+      });
+      storeFilter.value = '__ALL__';
+      if (!stores || stores.length === 0) showDespError('No hay tiendas activas para este país.');
+    })
+    .withFailureHandler(function(err) {
+      const msg = (err && err.message) ? err.message : String(err);
+      storeFilter.innerHTML = '<option value="">Error al cargar</option>';
+      showDespError('Error al cargar tiendas: ' + msg);
+    })
+    .getStoreNamesByCountry(country);
+}
+
+function onDespStoreChange() {
+  const store = document.getElementById('despStoreFilter')?.value || '';
+  const country = document.getElementById('despCountryFilter')?.value || '';
+  const nameEl = document.getElementById('despStoreName');
+  const isAll = !store || store === '__ALL__';
+  if (nameEl) nameEl.textContent = isAll ? (country || 'REGIONAL') : store;
+  loadDespachosForStore(isAll ? '__ALL__' : store, isAll ? country : '');
+}
+
+function syncDespAdminCountry(country) {
+  const hiddenCountry = document.getElementById('despCountryFilter');
+  if (hiddenCountry) hiddenCountry.value = country || '';
+  const storeProxy = document.getElementById('despAdminStoreProxy');
+  if (storeProxy) {
+    storeProxy.innerHTML = '<option value="__ALL__">Todas las tiendas</option>';
+    storeProxy.value = '__ALL__';
+  }
+  onDespCountryChange();
+}
+
+function syncDespAdminStore(store) {
+  const hiddenStore = document.getElementById('despStoreFilter');
+  if (hiddenStore) hiddenStore.value = store || '__ALL__';
+  onDespStoreChange();
+}
+
+function populateDespAdminStoreProxy(stores) {
+  const proxy = document.getElementById('despAdminStoreProxy');
+  if (!proxy) return;
+  proxy.innerHTML = '<option value="__ALL__">Todas las tiendas</option>';
+  (stores || []).forEach(function(store) {
+    const opt = document.createElement('option');
+    opt.value = store;
+    opt.text = store;
+    proxy.appendChild(opt);
+  });
+  proxy.value = '__ALL__';
+}
+
+function loadDespachosForStore(store, country) {
+  const sel = document.getElementById('despSelector');
+  if (!sel) return;
+  hideAllDesp();
+  _despData = [];
+  _activeDespacho = null;
+  _pendingStore = null;
+  _despSelectedStore = store;
+  sel.innerHTML = '<option value="">Cargando despachos...</option>';
+  sel.disabled = true;
+
+  google.script.run
+    .withSuccessHandler(function(result) {
+      if (result.error) {
+        sel.innerHTML = '<option value="">Error al cargar</option>';
+        sel.disabled = false;
+        showDespError(result.error);
+        return;
+      }
+      _despData = result.despachos || [];
+      if (_despData.length === 0) {
+        sel.innerHTML = '<option value="">Sin despachos disponibles</option>';
+        sel.disabled = false;
+        renderDespAdminDashboard();
+        showDespEmpty();
+        return;
+      }
+      sel.innerHTML = '<option value="">— Seleccione un despacho —</option>';
+      var allOpt = document.createElement('option');
+      allOpt.value = '__ALL_DESP__';
+      allOpt.text = 'Todos los despachos';
+      sel.appendChild(allOpt);
+      sel.disabled = false;
+      _despData.forEach(function(d) {
+        var opt = document.createElement('option');
+        opt.value = d.despacho;
+        var stores = {};
+        (d.invoices || []).forEach(function(inv) { if (inv.store) stores[inv.store] = true; });
+        var storeCount = Object.keys(stores).length;
+        opt.text  = 'Despacho ' + d.despacho + (storeCount > 1 ? ' · ' + storeCount + ' tiendas' : '');
+        sel.appendChild(opt);
+      });
+      populateDespAdminDespachos();
+      sel.value = '__ALL_DESP__';
+      onDespChange();
+    })
+    .withFailureHandler(function(err) {
+      var msg = (err && err.message) ? err.message : String(err);
+      if (sel) sel.innerHTML = '<option value="">Error al cargar</option>';
+      if (sel) sel.disabled = false;
+      showDespError('Error al cargar despachos: ' + msg);
+    })
+    .getDespachos(store, country || '');
+}
+
+function onDespChange() {
+  var val = document.getElementById('despSelector').value;
+  hideAllDesp();
+  if (!val) return;
+  if (val === '__ALL_DESP__') {
+    var allInvoices = [];
+    (_despData || []).forEach(function(d) {
+      (d.invoices || []).forEach(function(inv) {
+        allInvoices.push(Object.assign({ despacho: d.despacho }, inv));
+      });
+    });
+    _activeDespacho = { despacho: '__ALL_DESP__', invoices: allInvoices };
+    if (!allInvoices.length) { showDespEmpty(); return; }
+    if (_despAdminMode) {
+      renderDespAdminDashboard();
+      return;
+    }
+    renderDespSummary(allInvoices, true);
+    renderDespDept(allInvoices, true);
+    return;
+  }
+  _activeDespacho = null;
+  for (var i = 0; i < _despData.length; i++) {
+    if (_despData[i].despacho === val) { _activeDespacho = _despData[i]; break; }
+  }
+  if (!_activeDespacho || !_activeDespacho.invoices.length) { showDespEmpty(); return; }
+  if (_despAdminMode) {
+    renderDespAdminDashboard();
+    return;
+  }
+  renderDespSummary(_activeDespacho.invoices, false);
+  renderDespDept(_activeDespacho.invoices, false);
+}
+
+function populateDespAdminDespachos() {
+  const adminSel = document.getElementById('despAdminDespFilter');
+  if (!adminSel) return;
+  adminSel.innerHTML = '<option value="__ALL_DESP__">Todos los despachos</option>';
+  (_despData || []).forEach(function(d) {
+    const opt = document.createElement('option');
+    opt.value = d.despacho;
+    opt.text = 'Despacho ' + d.despacho;
+    adminSel.appendChild(opt);
+  });
+}
+
+function getDespAdminInvoices() {
+  const despacho = document.getElementById('despAdminDespFilter')?.value || '__ALL_DESP__';
+  const status = document.getElementById('despStatusFilter')?.value || 'PENDIENTE';
+  let rows = [];
+  (_despData || []).forEach(function(d) {
+    if (despacho !== '__ALL_DESP__' && d.despacho !== despacho) return;
+    (d.invoices || []).forEach(function(inv) {
+      const invStatus = String(inv.status || '').trim().toUpperCase();
+      const isRec = invStatus === 'RECIBIDO';
+      if (status === 'PENDIENTE' && isRec) return;
+      if (status === 'RECIBIDO' && !isRec) return;
+      rows.push(Object.assign({ despacho: d.despacho }, inv));
+    });
+  });
+  return rows;
+}
+
+function renderDespAdminDashboard() {
+  if (!_despAdminMode) return;
+  hideAllDesp();
+  const rows = getDespAdminInvoices();
+  const despachos = {};
+  rows.forEach(function(inv) { if (inv.despacho) despachos[inv.despacho] = true; });
+  const totalDesp = Object.keys(despachos).length;
+  const totalInv = rows.length;
+  const totalUnits = rows.reduce((sum, inv) => sum + Number(inv.unidades || 0), 0);
+  const totalBoxes = rows.reduce((sum, inv) => sum + Number(inv.cajas || 0), 0);
+
+  const count = document.getElementById('despAdminCount');
+  if (count) count.textContent = totalDesp + ' desp. · ' + totalInv + ' invoices';
+  renderDespAdminKpis(totalDesp, totalInv, totalUnits, totalBoxes);
+  renderDespDonut('despMerchChart', groupDespUnits(rows, 'merch'));
+  renderDespDonut('despSeasonChart', groupDespUnits(rows, 'season'));
+  renderDespAdminList(rows);
+}
+
+function renderDespAdminKpis(despachos, invoices, unidades, cajas) {
+  const wrap = document.getElementById('despAdminKpis');
+  if (!wrap) return;
+  const cards = [
+    ['local_shipping', 'Despachos', despachos.toLocaleString()],
+    ['receipt_long', 'Invoices', invoices.toLocaleString()],
+    ['inventory', 'Unidades', unidades.toLocaleString()],
+    ['inventory_2', 'Cajas', cajas.toLocaleString()]
+  ];
+  wrap.innerHTML = cards.map(function(card) {
+    return '<div class="rounded-2xl bg-white border border-blue-50 shadow-sm p-5 flex items-center gap-4">' +
+      '<span class="material-symbols-outlined flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-[#1565C0]">' + card[0] + '</span>' +
+      '<div><p class="text-[10px] font-black text-zinc-400 uppercase tracking-[0.16em]">' + card[1] + '</p>' +
+      '<p class="mt-1 text-2xl font-black text-zinc-900 tracking-tight">' + card[2] + '</p></div>' +
+    '</div>';
+  }).join('');
+}
+
+function groupDespUnits(rows, key) {
+  const totals = {};
+  rows.forEach(function(inv) {
+    (inv.depts || []).forEach(function(d) {
+      const label = String(d[key] || 'N/A').trim() || 'N/A';
+      totals[label] = (totals[label] || 0) + Number(d.quantity || 0);
+    });
+  });
+  return Object.keys(totals).map(function(label) {
+    return { label, value: totals[label] };
+  }).sort(function(a, b) { return b.value - a.value; }).slice(0, 6);
+}
+
+function renderDespDonut(id, rows) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const palette = ['#2563C0', '#13756B', '#F59E24', '#6D28D9', '#DC2626', '#1493A3'];
+  const total = rows.reduce((sum, r) => sum + Number(r.value || 0), 0);
+  if (!total) {
+    el.innerHTML = '<div class="h-[220px] flex items-center justify-center text-[10px] font-black uppercase tracking-[0.16em] text-zinc-300">Sin datos</div>';
+    return;
+  }
+  let start = 0;
+  const stops = rows.map(function(r, idx) {
+    const pct = (r.value / total) * 100;
+    const part = palette[idx % palette.length] + ' ' + start.toFixed(2) + '% ' + (start + pct).toFixed(2) + '%';
+    start += pct;
+    return part;
+  }).join(', ');
+  const legend = rows.map(function(r, idx) {
+    const pct = total ? (r.value / total) * 100 : 0;
+    return '<div class="grid grid-cols-[16px_1fr_auto] items-center gap-2 text-sm font-black text-zinc-700">' +
+      '<span class="h-2.5 w-2.5 rounded-full" style="background:' + palette[idx % palette.length] + '"></span>' +
+      '<span>' + escDespH(r.label) + '</span><span>' + pct.toFixed(1) + '%</span></div>';
+  }).join('');
+  el.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-[220px_1fr] gap-8 items-center">' +
+    '<div class="mx-auto h-[190px] w-[190px] rounded-full" style="background:conic-gradient(' + stops + ');"><div class="relative left-1/2 top-1/2 h-[92px] w-[92px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"></div></div>' +
+    '<div class="space-y-3">' + legend + '</div></div>';
+}
+
+function renderDespAdminList(rows) {
+  const wrap = document.getElementById('despAdminList');
+  if (!wrap) return;
+  if (!rows.length) {
+    wrap.innerHTML = '<div class="rounded-2xl bg-white border border-blue-50 p-10 text-center text-[11px] font-black uppercase tracking-[0.16em] text-zinc-300">Sin despachos para los filtros seleccionados</div>';
+    return;
+  }
+  const grouped = {};
+  rows.forEach(function(inv) {
+    if (!grouped[inv.despacho]) grouped[inv.despacho] = [];
+    grouped[inv.despacho].push(inv);
+  });
+  wrap.innerHTML = Object.keys(grouped).sort().map(function(despacho) {
+    const invs = grouped[despacho];
+    const units = invs.reduce((sum, inv) => sum + Number(inv.unidades || 0), 0);
+    const boxes = invs.reduce((sum, inv) => sum + Number(inv.cajas || 0), 0);
+    const detailId = 'desp-admin-detail-' + String(despacho).replace(/[^a-zA-Z0-9_-]/g, '-');
+    return '<div class="rounded-[22px] bg-[#2563C0] text-white shadow-sm overflow-hidden">' +
+      '<button onclick="toggleDespAdminDetail(\'' + escDespQ(detailId) + '\')" class="w-full px-5 sm:px-7 py-5 flex flex-col lg:flex-row lg:items-center gap-4 text-left">' +
+        '<div class="flex items-center gap-4 min-w-[280px]"><span class="material-symbols-outlined text-white/60">chevron_right</span><span class="material-symbols-outlined text-white/70">local_shipping</span>' +
+        '<div><p class="text-[10px] font-black text-white/45 uppercase tracking-[0.16em]">Despacho</p><p class="text-2xl font-black">' + escDespH(despacho) + '</p></div></div>' +
+        '<div class="grid grid-cols-3 gap-5 lg:ml-auto w-full lg:w-auto">' +
+          '<div><p class="text-[10px] font-black text-white/45 uppercase tracking-[0.16em]">Unidades</p><p class="text-xl font-black">' + units.toLocaleString() + '</p></div>' +
+          '<div><p class="text-[10px] font-black text-white/45 uppercase tracking-[0.16em]">Cajas</p><p class="text-xl font-black">' + boxes.toLocaleString() + '</p></div>' +
+          '<div><p class="text-[10px] font-black text-white/45 uppercase tracking-[0.16em]">Invoices</p><p class="text-xl font-black">' + invs.length.toLocaleString() + '</p></div>' +
+        '</div></button>' +
+      '<div id="' + detailId + '" class="hidden bg-white text-zinc-800 border-t border-white/20 overflow-x-auto">' + renderDespAdminInvoiceTable(invs) + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderDespAdminInvoiceTable(invoices) {
+  return '<table class="w-full min-w-[900px] text-sm"><thead><tr class="bg-blue-50 text-[#1565C0]">' +
+    '<th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest">Tienda</th>' +
+    '<th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest">Invoice</th>' +
+    '<th class="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest">Unidades</th>' +
+    '<th class="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest">Cajas</th>' +
+    '<th class="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">Status</th>' +
+    '<th class="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest">Acción</th>' +
+  '</tr></thead><tbody class="divide-y divide-blue-50">' + invoices.map(function(inv) {
+    const isRec = String(inv.status || '').toUpperCase() === 'RECIBIDO';
+    return '<tr class="hover:bg-blue-50/40">' +
+      '<td class="px-4 py-3 font-black text-[#1565C0]">' + escDespH(inv.store || '') + '</td>' +
+      '<td class="px-4 py-3 font-bold">' + escDespH(inv.invoiceId || '') + '</td>' +
+      '<td class="px-4 py-3 text-right font-black">' + Number(inv.unidades || 0).toLocaleString() + '</td>' +
+      '<td class="px-4 py-3 text-right font-black">' + Number(inv.cajas || 0).toLocaleString() + '</td>' +
+      '<td class="px-4 py-3 text-center">' + (isRec ? '<span class="inline-flex px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase">Recibido</span>' : '<span class="inline-flex px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase">Pendiente</span>') + '</td>' +
+      '<td class="px-4 py-3 text-center">' + (isRec ? '<span class="text-emerald-500 font-black text-[10px] uppercase">Confirmado</span>' : '<button onclick="openDespModal(\'' + escDespQ(inv.invoiceId) + '\', \'' + escDespQ(inv.store) + '\')" class="px-3 py-1.5 rounded-xl bg-[#1565C0] text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#0D47A1]">Marcar Recibido</button>') + '</td>' +
+    '</tr>';
+  }).join('') + '</tbody></table>';
+}
+
+function toggleDespAdminDetail(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('hidden');
+}
+
+function renderDespSummary(invoices, showDespacho) {
+  var tbody = document.getElementById('despSummaryBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  var despachoHead = document.getElementById('despSummaryDespachoHead');
+  if (despachoHead) despachoHead.classList.toggle('hidden', !showDespacho);
+  invoices.forEach(function(inv) {
+    var isRec = inv.status.toUpperCase() === 'RECIBIDO';
+    var badge = isRec
+      ? '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase"><span class="material-symbols-outlined" style="font-size:14px;">check_circle</span>Recibido</span>'
+      : (inv.status
+          ? '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase">' + escDespH(inv.status) + '</span>'
+          : '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-zinc-100 text-zinc-400 text-[10px] font-black uppercase">Pendiente</span>');
+    var action = isRec
+      ? '<span class="text-emerald-500 font-black text-[10px] uppercase tracking-widest">✓ Confirmado</span>'
+      : '<button onclick="openDespModal(\'' + escDespQ(inv.invoiceId) + '\', \'' + escDespQ(inv.store || _despSelectedStore) + '\')" class="px-3 py-1.5 rounded-xl bg-[#1565C0] text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#0D47A1] transition-colors whitespace-nowrap">Marcar Recibido</button>';
+    var albaranes = Array.isArray(inv.albaranesICG) ? inv.albaranesICG : [];
+    var albaranesHtml = albaranes.length
+      ? albaranes.map(function(albaran) {
+          return '<span class="inline-flex px-2 py-0.5 rounded-lg bg-blue-50 text-[#1565C0] text-[10px] font-black uppercase tracking-wide whitespace-nowrap">' + escDespH(albaran) + '</span>';
+        }).join('')
+      : '<span class="text-zinc-300 font-bold text-[10px]">—</span>';
+    var tr = document.createElement('tr');
+    tr.className = 'hover:bg-blue-50/40 transition-colors';
+    tr.innerHTML =
+      (showDespacho ? '<td class="px-3 py-3 font-black text-zinc-500">' + escDespH(inv.despacho || '') + '</td>' : '') +
+      '<td class="px-3 py-3 font-black text-[#1565C0]">' + escDespH(inv.store || '') + '</td>' +
+      '<td class="px-3 py-3 font-bold text-zinc-800">' + escDespH(inv.invoiceId) + '</td>' +
+      '<td class="px-3 py-3 text-right font-black text-zinc-700">' + inv.cajas + '</td>' +
+      '<td class="px-3 py-3 text-right font-black text-zinc-700">' + inv.unidades.toLocaleString() + '</td>' +
+      '<td class="px-3 py-3 text-center">' + badge + '</td>' +
+      '<td class="px-3 py-3 text-center">' + (inv.statusRS ? '<span class="inline-flex items-center px-2 py-1 rounded-full bg-violet-100 text-violet-700 text-[10px] font-black uppercase">' + escDespH(inv.statusRS) + '</span>' : '<span class="text-zinc-300 font-bold text-[10px]">—</span>') + '</td>' +
+      '<td class="px-3 py-3"><div class="flex flex-wrap gap-1.5 min-w-[120px]">' + albaranesHtml + '</div></td>' +
+      '<td class="px-3 py-3 text-center text-zinc-500 font-bold text-xs">' + (escDespH(inv.fechaLlegada) || '—') + '</td>' +
+      '<td class="px-3 py-3 text-center">' + action + '</td>';
+    tbody.appendChild(tr);
+  });
+  var wrap = document.getElementById('despSummaryWrap');
+  if (wrap) wrap.classList.remove('hidden');
+}
+
+function renderDespDept(invoices, showDespacho) {
+  var tbody = document.getElementById('despDeptBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  var despachoHead = document.getElementById('despDeptDespachoHead');
+  if (despachoHead) despachoHead.classList.toggle('hidden', !showDespacho);
+  var hasRows = false;
+  invoices.forEach(function(inv) {
+    inv.depts.forEach(function(d, idx) {
+      hasRows = true;
+      var tr = document.createElement('tr');
+      tr.className = 'hover:bg-blue-50/40 transition-colors';
+      tr.innerHTML =
+        (showDespacho ? '<td class="px-4 py-2.5 font-black text-zinc-500 text-xs">' + (idx === 0 ? escDespH(inv.despacho || '') : '') + '</td>' : '') +
+        '<td class="px-4 py-2.5 font-black text-[#1565C0] text-xs">' + (idx === 0 ? escDespH(inv.store || '') : '') + '</td>' +
+        '<td class="px-4 py-2.5 font-bold text-zinc-600 text-xs">' + (idx === 0 ? escDespH(inv.invoiceId) : '') + '</td>' +
+        '<td class="px-4 py-2.5 text-xs font-bold text-zinc-500">' + escDespH(d.season) + '</td>' +
+        '<td class="px-4 py-2.5"><span class="inline-block px-2 py-0.5 rounded-lg bg-blue-100 text-[#1565C0] text-[10px] font-black uppercase tracking-widest">' + escDespH(d.merch) + '</span></td>' +
+        '<td class="px-4 py-2.5 text-right font-black text-zinc-700 text-xs">' + d.quantity.toLocaleString() + '</td>';
+      tbody.appendChild(tr);
+    });
+  });
+  var wrap = document.getElementById('despDeptWrap');
+  if (wrap && hasRows) wrap.classList.remove('hidden');
+}
+
+function openDespModal(invoiceId, store) {
+  _pendingInvoice = invoiceId;
+  _pendingStore = store || _despSelectedStore || sessionStorage.getItem('activeStore') || '';
+  var label = document.getElementById('modalInvoiceLabel');
+  if (label) label.textContent = 'Invoice ' + invoiceId + (_pendingStore ? ' · ' + _pendingStore : '');
+  var today = new Date();
+  var fechaInput = document.getElementById('modalFecha');
+  if (fechaInput) fechaInput.value = today.toISOString().split('T')[0];
+  var modal = document.getElementById('despModal');
+  if (modal) { modal.style.removeProperty('display'); modal.style.display = 'flex'; }
+}
+
+function closeDespModal() {
+  var modal = document.getElementById('despModal');
+  if (modal) modal.style.display = 'none';
+  _pendingInvoice = null;
+  _pendingStore = null;
+}
+
+function confirmDespRecibido() {
+  if (!_pendingInvoice) return;
+  var rawFecha = document.getElementById('modalFecha').value;
+  if (!rawFecha) { alert('Por favor selecciona una fecha de recepción.'); return; }
+  var parts    = rawFecha.split('-');
+  var fechaFmt = parts[2] + '-' + parts[1] + '-' + parts[0];
+  var store    = _despSelectedStore || sessionStorage.getItem('activeStore') || '';
+  if (_pendingStore) store = _pendingStore;
+  var actionStore = store;
+  var invoiceId = _pendingInvoice;
+  closeDespModal();
+
+  var loader = document.getElementById('loader');
+  if (loader) loader.style.display = 'flex';
+
+  google.script.run
+    .withSuccessHandler(function(result) {
+      if (loader) loader.style.display = 'none';
+      if (result.error) { showDespError('Error al guardar: ' + result.error); return; }
+      (_despData || []).forEach(function(desp) {
+        (desp.invoices || []).forEach(function(inv) {
+          if (inv.invoiceId === invoiceId && (!actionStore || inv.store === actionStore)) {
+            inv.status = 'RECIBIDO';
+            inv.fechaLlegada = fechaFmt;
+          }
+        });
+      });
+      if (_activeDespacho) {
+        for (var i = 0; i < _activeDespacho.invoices.length; i++) {
+          if (_activeDespacho.invoices[i].invoiceId === invoiceId && (!actionStore || _activeDespacho.invoices[i].store === actionStore)) {
+            _activeDespacho.invoices[i].status       = 'RECIBIDO';
+            _activeDespacho.invoices[i].fechaLlegada = fechaFmt;
+            break;
+          }
+        }
+        if (_despAdminMode) {
+          renderDespAdminDashboard();
+          return;
+        }
+        var showDespacho = _activeDespacho.despacho === '__ALL_DESP__';
+        renderDespSummary(_activeDespacho.invoices, showDespacho);
+      }
+    })
+    .withFailureHandler(function(err) {
+      if (loader) loader.style.display = 'none';
+      var msg = (err && err.message) ? err.message : String(err);
+      showDespError('Error al guardar: ' + msg);
+    })
+    .markInvoiceRecibido(store, invoiceId, fechaFmt);
+}
+
+function hideAllDesp() {
+  ['despSummaryWrap','despDeptWrap','despEmpty','despError'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+}
+function showDespEmpty() {
+  hideAllDesp();
+  var el = document.getElementById('despEmpty');
+  if (el) el.classList.remove('hidden');
+}
+function showDespError(msg) {
+  hideAllDesp();
+  var el = document.getElementById('despError');
+  if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+}
+function escDespH(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escDespQ(s) {
+  return String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+}
+
+// ─── RETAIL STORE ─────────────────────────────────────────────────────────────
+
+var _rs41Data = [];
+var _rs55Data = [];
+var _rs01Data = [];
+var _rs01DataAll = [];
+var _rsUploadFile = null;
+var _rsUploadFiles = [];
+
+function initRetailStore() {
+  const role  = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+
+  const loading = document.getElementById('rs-loading');
+  const content = document.getElementById('rs-content');
+  const empty   = document.getElementById('rs-empty');
+  if (loading) loading.classList.remove('hidden');
+  if (content) content.classList.add('hidden');
+  if (empty) empty.classList.add('hidden');
+  rsPrepareUploadControls();
+
+  if (role === 'ADMIN') {
+    rsInitAdminStoreSelector(function() {
+      rsLoadRetailStoreData();
+    });
+  } else {
+    const switcher = document.getElementById('rs-admin-store-switcher');
+    if (switcher) switcher.classList.add('hidden');
+    rsLoadRetailStoreData();
+  }
+}
+
+function rsInitAdminStoreSelector(callback) {
+  var switcher = document.getElementById('rs-admin-store-switcher');
+  var select = document.getElementById('rs-admin-store-select');
+  if (!select) {
+    if (callback) callback();
+    return;
+  }
+  if (switcher) switcher.classList.remove('hidden');
+  select.innerHTML = '<option value="">Cargando tiendas...</option>';
+
+  google.script.run
+    .withSuccessHandler(function(stores) {
+      stores = stores || [];
+      var active = (sessionStorage.getItem('activeStore') || '').trim().toUpperCase();
+      var hasActive = stores.some(function(store) {
+        return String(store || '').trim().toUpperCase() === active;
+      });
+      if (!hasActive && stores.length) {
+        active = String(stores[0] || '').trim().toUpperCase();
+        sessionStorage.setItem('activeStore', active);
+      }
+      select.innerHTML = stores.map(function(store) {
+        var value = String(store || '').trim();
+        return '<option value="' + escRs(value) + '"' + (value.toUpperCase() === active ? ' selected' : '') + '>' + escRs(value) + '</option>';
+      }).join('');
+      if (!stores.length) select.innerHTML = '<option value="">Sin tiendas activas</option>';
+      if (callback) callback();
+    })
+    .withFailureHandler(function(err) {
+      select.innerHTML = '<option value="">Error al cargar</option>';
+      rsShowEmpty('Error al cargar tiendas: ' + ((err && err.message) || err));
+    })
+    .getActiveStoreNames();
+}
+
+function rsSwitchAdminRetailStore(store) {
+  if (!store) return;
+  sessionStorage.setItem('activeStore', String(store || '').trim().toUpperCase());
+  rsLoadRetailStoreData();
+}
+
+function rsLoadRetailStoreData() {
+  const role  = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+  const store = (sessionStorage.getItem('activeStore') || '').trim();
+  const loading = document.getElementById('rs-loading');
+  const content = document.getElementById('rs-content');
+  const empty   = document.getElementById('rs-empty');
+
+  if (loading) loading.classList.remove('hidden');
+  if (content) content.classList.add('hidden');
+  if (empty) empty.classList.add('hidden');
+
+  if (!store || store.toUpperCase() === 'ADMIN' || store.toUpperCase() === 'GLOBAL') {
+    if (loading) loading.classList.add('hidden');
+    rsShowEmpty('Selecciona una tienda para cargar RetailStore.');
+    return;
+  }
+
+  rsLoadUploadHistory();
+  google.script.run
+    .withSuccessHandler(function(data) {
+      if (loading) loading.classList.add('hidden');
+      if (!data || data.error) {
+        rsShowEmpty(data ? data.error : 'Sin datos disponibles');
+        return;
+      }
+      if (content) content.classList.remove('hidden');
+      _rs01DataAll = data.rs01 || [];
+      _rs01Data = _rs01DataAll.slice();
+      _rs41Data = data.rs41 || [];
+      _rs55Data = data.rs55 || [];
+      var familyFilterEl = document.getElementById('rs-family-filter');
+      if (familyFilterEl) familyFilterEl.value = '';
+      rsRenderKpis(data.kpis);
+      rsPopulateFamilyFilter(_rs01DataAll);
+      rsPopulateMerchSeasonFilter(_rs01Data);
+      rsRenderReport1ContributionCharts();
+      rsRenderLastPiecesPieChart();
+      rsRenderTable41(data.rs41);
+      rsRenderTable55(data.rs55);
+      rsRenderNegativosSummary(_rs01Data);
+      rsRenderLastPiecesSummary(_rs01Data);
+
+      const meta = document.getElementById('rs-meta');
+      if (meta) meta.innerText = 'Semana ' + (data.reportDate || '-') + ' · ' + store;
+    })
+    .withFailureHandler(function(err) {
+      if (loading) loading.classList.add('hidden');
+      rsShowEmpty('Error al cargar datos: ' + ((err && err.message) || err));
+    })
+    .getRetailStoreData(store, role);
+}
+
+function rsPrepareUploadControls() {
+  var dateInput = document.getElementById('rs-upload-report-date');
+  if (dateInput && !dateInput.value) {
+    var today = new Date();
+    dateInput.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  }
+}
+
+function rsHandleReportFileSelect(input) {
+  _rsUploadFiles = input && input.files && input.files.length ? Array.prototype.slice.call(input.files) : [];
+  _rsUploadFile = _rsUploadFiles.length ? _rsUploadFiles[0] : null;
+  var label = document.getElementById('rs-upload-file-name');
+  if (label) {
+    if (_rsUploadFiles.length > 1) label.innerText = _rsUploadFiles.length + ' archivos seleccionados';
+    else label.innerText = _rsUploadFile ? _rsUploadFile.name : 'Seleccionar archivo';
+  }
+  rsSetUploadStatus(_rsUploadFiles.length ? 'Archivos listos para subir.' : 'Selecciona uno o más archivos para continuar.', false);
+}
+
+function rsSetUploadStatus(message, isError, isLoading) {
+  var status = document.getElementById('rs-upload-status');
+  if (!status) return;
+  status.className = 'text-[11px] mt-1 ' + (isError ? 'text-red-500 font-bold' : 'text-zinc-400');
+  if (isLoading) {
+    status.innerHTML = '<span class="inline-flex items-center gap-2"><span class="inline-block h-3 w-3 rounded-full border-2 border-blue-200 border-t-[#1565C0] animate-spin"></span><span>' + escRs(message || 'Cargando datos en Base de datos') + '</span></span>';
+  } else {
+    status.innerText = message || '';
+  }
+}
+
+function rsSetUploadBusy(isBusy) {
+  var button = document.getElementById('rs-upload-submit');
+  if (!button) return;
+  button.disabled = !!isBusy;
+  button.classList.toggle('opacity-60', !!isBusy);
+  button.classList.toggle('cursor-not-allowed', !!isBusy);
+}
+
+function rsResetUploadInput() {
+  _rsUploadFile = null;
+  _rsUploadFiles = [];
+  var input = document.getElementById('rs-upload-file-input');
+  var label = document.getElementById('rs-upload-file-name');
+  if (input) input.value = '';
+  if (label) label.innerText = 'Seleccionar archivo';
+}
+
+function rsUploadReportFile() {
+  const role  = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+  const store = (sessionStorage.getItem('activeStore') || '').trim();
+  var typeEl = document.getElementById('rs-upload-report-type');
+  var dateEl = document.getElementById('rs-upload-report-date');
+  var files = _rsUploadFiles && _rsUploadFiles.length ? _rsUploadFiles.slice() : (_rsUploadFile ? [_rsUploadFile] : []);
+
+  if (!files.length) {
+    rsSetUploadStatus('Selecciona uno o más archivos antes de subir.', true);
+    return;
+  }
+  if (!store && role !== 'ADMIN') {
+    rsSetUploadStatus('No se pudo identificar la tienda activa.', true);
+    return;
+  }
+
+  rsSetUploadBusy(true);
+  var results = [];
+
+  function finishUploads() {
+    rsSetUploadBusy(false);
+    rsLoadUploadHistory();
+    var ok = results.filter(function(r) { return r && r.success; }).length;
+    var fail = results.length - ok;
+    if (fail) {
+      var lastError = results.slice().reverse().find(function(r) { return !r || !r.success; });
+      rsSetUploadStatus(ok + ' archivo(s) cargados, ' + fail + ' con error. ' + ((lastError && lastError.message) || 'No se pudo subir el último archivo.'), true);
+    } else {
+      rsSetUploadStatus(ok + ' archivo(s) guardados. Cargando datos en Base de datos.', false);
+      rsResetUploadInput();
+    }
+  }
+
+  function uploadNext(index) {
+    if (index >= files.length) {
+      finishUploads();
+      return;
+    }
+    var file = files[index];
+    rsSetUploadStatus('Cargando datos en Base de datos · ' + (index + 1) + ' de ' + files.length, false, true);
+    var reader = new FileReader();
+    reader.onload = function(event) {
+    var result = String(event.target.result || '');
+    var base64 = result.indexOf(',') > -1 ? result.split(',')[1] : result;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          results.push(res || { success: false, message: 'No se pudo subir el archivo.' });
+          rsSetUploadStatus(((res && res.message) || 'No se pudo subir el archivo.') + ' · ' + file.name, true);
+          uploadNext(index + 1);
+          return;
+        }
+        results.push(res);
+        uploadNext(index + 1);
+      })
+      .withFailureHandler(function(err) {
+        results.push({ success: false, message: (err && err.message) || String(err || '') });
+        rsSetUploadStatus('Error al subir ' + file.name + ': ' + ((err && err.message) || err), true);
+        uploadNext(index + 1);
+      })
+      .uploadRetailStoreReport({
+        store: store,
+        role: role,
+        reportType: typeEl ? typeEl.value : 'AUTO',
+        reportDate: dateEl ? dateEl.value : '',
+        fileName: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        base64Data: base64
+      });
+    };
+    reader.onerror = function() {
+      results.push({ success: false, message: 'No se pudo leer el archivo seleccionado.' });
+      rsSetUploadStatus('No se pudo leer ' + file.name + '.', true);
+      uploadNext(index + 1);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  uploadNext(0);
+}
+
+function rsLoadUploadHistory() {
+  const role  = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+  const store = (sessionStorage.getItem('activeStore') || '').trim();
+  var history = document.getElementById('rs-upload-history');
+  if (!history) return;
+
+  google.script.run
+    .withSuccessHandler(function(rows) {
+      if (!rows || !rows.length) {
+        history.classList.add('hidden');
+        history.innerHTML = '';
+        return;
+      }
+      history.classList.remove('hidden');
+      history.innerHTML = '<div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-[10px] font-black uppercase tracking-widest text-zinc-400">' +
+        rows.slice(0, 3).map(function(row) {
+          var statusColor = row.status === 'SYNC_REQUESTED' || row.status === 'SYNCED' ? 'text-emerald-600' : (row.status === 'ERROR' ? 'text-red-500' : 'text-amber-500');
+          return '<a class="truncate hover:text-[#1565C0]" href="' + escRs(row.url) + '" target="_blank">' + escRs(row.reportType) + ' · ' + escRs(row.fileName) + '</a>' +
+            '<span class="' + statusColor + ' shrink-0">' + escRs(row.status || 'GUARDADO') + '</span>';
+        }).join('<span class="hidden sm:inline text-blue-100">|</span>') +
+      '</div>';
+    })
+    .withFailureHandler(function() {
+      history.classList.add('hidden');
+    })
+    .getRetailStoreUploadHistory(store, role);
+}
+
+function rsShowEmpty(msg) {
+  var loading = document.getElementById('rs-loading');
+  var content = document.getElementById('rs-content');
+  var empty   = document.getElementById('rs-empty');
+  var emsgEl  = document.getElementById('rs-empty-msg');
+  if (loading) loading.classList.add('hidden');
+  if (content) content.classList.add('hidden');
+  if (empty) empty.classList.remove('hidden');
+  if (emsgEl) emsgEl.innerText = msg || 'Sin datos disponibles';
+}
+
+function rsRenderKpis(kpis) {
+  if (!kpis) return;
+  var set = function(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.innerText = val;
+  };
+  set('rs-kpi-en-bodega', (kpis.enBodega || 0).toLocaleString());
+  set('rs-kpi-reponer', (kpis.porReponer || 0).toLocaleString());
+  set('rs-kpi-movimientos', (kpis.movimientos || 0).toLocaleString());
+  set('rs-kpi-negativos', (kpis.negativosRayon || 0).toLocaleString());
+  set('rs-kpi-tallas-unicas', (kpis.tallasUnicasUnidades || 0).toLocaleString());
+  var lastPiecesPct = Number(kpis.tallasUnicasPctWarehouse || 0);
+  set('rs-kpi-tallas-unicas-sub', lastPiecesPct.toFixed(1) + '% del warehouse · ' + ((kpis.tallasUnicas || 0).toLocaleString()) + ' Specialcode + Color');
+  set('rs-kpi-recepcion', kpis.ultimaRecepcion || '-');
+}
+
+function rsPopulateFamilyFilter(rows) {
+  var select = document.getElementById('rs-family-filter');
+  if (!select) return;
+  var families = {};
+  (rows || []).forEach(function(row) {
+    var fam = rsResolveWarehouseGroup(row, 'product_family');
+    if (fam && fam !== 'UNKNOWN') families[fam] = true;
+  });
+  var sorted = Object.keys(families).sort();
+  var current = select.value;
+  select.innerHTML = '<option value="">Familia: Todas</option>' +
+    sorted.map(function(f) {
+      return '<option value="' + escRs(f) + '"' + (f === current ? ' selected' : '') + '>' + escRs(f) + '</option>';
+    }).join('');
+}
+
+function rsApplyFamilyFilter() {
+  var select = document.getElementById('rs-family-filter');
+  var family = select ? select.value : '';
+  _rs01Data = family
+    ? (_rs01DataAll || []).filter(function(row) {
+        return rsResolveWarehouseGroup(row, 'product_family') === family;
+      })
+    : (_rs01DataAll || []).slice();
+  rsRecalcKpisFromRS01(_rs01Data);
+  rsPopulateMerchSeasonFilter(_rs01Data);
+  rsRenderReport1ContributionCharts();
+  rsRenderLastPiecesPieChart();
+  rsRenderNegativosSummary(_rs01Data);
+  rsRenderLastPiecesSummary(_rs01Data);
+}
+
+function rsRecalcKpisFromRS01(rows) {
+  var enBodega = 0, negativosRayon = 0;
+  var uniqueSizeMap = {};
+  (rows || []).forEach(function(row) {
+    var wh = Number(row.warehouse || 0);
+    var ry = Number(row.rayon || 0);
+    enBodega += wh;
+    if (ry < 0) negativosRayon += Math.abs(ry);
+    if (wh > 0) {
+      var key = [
+        String(row.specialcode1 || '').trim().toUpperCase(),
+        String(row.color || '').trim().toUpperCase()
+      ].join('||');
+      if (key !== '||') uniqueSizeMap[key] = (uniqueSizeMap[key] || 0) + wh;
+    }
+  });
+  var tallasUnicas = 0, tallasUnicasUnidades = 0;
+  Object.keys(uniqueSizeMap).forEach(function(key) {
+    var qty = uniqueSizeMap[key] || 0;
+    if (qty <= 3) { tallasUnicas++; tallasUnicasUnidades += qty; }
+  });
+  var set = function(id, val) { var el = document.getElementById(id); if (el) el.innerText = val; };
+  set('rs-kpi-en-bodega', enBodega.toLocaleString());
+  set('rs-kpi-negativos', negativosRayon.toLocaleString());
+  set('rs-kpi-tallas-unicas', tallasUnicasUnidades.toLocaleString());
+  var pct = enBodega > 0 ? (tallasUnicasUnidades / enBodega) * 100 : 0;
+  set('rs-kpi-tallas-unicas-sub', pct.toFixed(1) + '% del warehouse · ' + tallasUnicas.toLocaleString() + ' Specialcode + Color');
+}
+
+function rsGetNegativosRayonRows() {
+  return (_rs01Data || []).filter(function(row) {
+    return Number(row.rayon || 0) < 0;
+  }).sort(function(a, b) {
+    return Number(a.rayon || 0) - Number(b.rayon || 0);
+  });
+}
+
+function rsRenderNegativosSummary(rows) {
+  var count = document.getElementById('rs-negativos-count');
+  if (!count) return;
+  var negatives = (rows || []).filter(function(row) {
+    return Number(row.rayon || 0) < 0;
+  });
+  var units = negatives.reduce(function(sum, row) {
+    return sum + Math.abs(Number(row.rayon || 0));
+  }, 0);
+  count.innerText = negatives.length.toLocaleString() + ' productos · ' + units.toLocaleString() + ' unidades';
+}
+
+function rsGetReport1Metric() {
+  var select = document.getElementById('rs-01-stock-metric');
+  return select && select.value === 'rayon' ? 'rayon' : 'warehouse';
+}
+
+function rsGetLastPiecesMetric() {
+  var select = document.getElementById('rs-01-last-pieces-metric');
+  return select && select.value === 'rayon' ? 'rayon' : 'warehouse';
+}
+
+function rsGetStockMetricQty(row, metric) {
+  var qty = Number(row && row[metric || 'warehouse'] || 0);
+  return qty > 0 ? qty : 0;
+}
+
+function rsMetricLabel(metric) {
+  return metric === 'rayon' ? 'Rayón' : 'Warehouse';
+}
+
+function rsGetLastPiecesRows(metric) {
+  metric = metric || 'warehouse';
+  var groups = {};
+  (_rs01Data || []).forEach(function(row) {
+    var qty = rsGetStockMetricQty(row, metric);
+    if (qty <= 0) return;
+    var code = String(row.specialcode1 || '').trim();
+    var color = String(row.color || '').trim();
+    if (!code && !color) return;
+    var key = code.toUpperCase() + '||' + color.toUpperCase();
+    if (!groups[key]) {
+      groups[key] = {
+        country: row.country || '',
+        store_id: row.store_id || '',
+        report_date: row.report_date || '',
+        specialcode1: code,
+        name: row.name || '',
+        color: color,
+        season: rsResolveWarehouseGroup(row, 'season'),
+        merch_group: rsResolveWarehouseGroup(row, 'merch_group'),
+        merch_sub_group: row.merch_sub_group || '',
+        product_family: rsResolveWarehouseGroup(row, 'product_family'),
+        warehouse: 0,
+        metric: metric,
+        sizes: {},
+        last_acceptance_date: row.last_acceptance_date || '',
+        location_quantity: []
+      };
+    }
+    groups[key].warehouse += qty;
+    var size = String(row.size || 'Sin talla').trim();
+    groups[key].sizes[size] = (groups[key].sizes[size] || 0) + qty;
+    if (row.location_quantity) groups[key].location_quantity.push(String(row.location_quantity).trim());
+    if (!groups[key].last_acceptance_date && row.last_acceptance_date) groups[key].last_acceptance_date = row.last_acceptance_date;
+  });
+
+  return Object.keys(groups).map(function(key) {
+    var item = groups[key];
+    item.size_detail = Object.keys(item.sizes).sort().map(function(size) {
+      return size + ': ' + item.sizes[size];
+    }).join(' | ');
+    item.location_detail = item.location_quantity.filter(Boolean).join(' | ');
+    return item;
+  }).filter(function(item) {
+    return item.warehouse <= 3;
+  }).sort(function(a, b) {
+    return a.warehouse - b.warehouse || String(a.specialcode1).localeCompare(String(b.specialcode1));
+  });
+}
+
+function rsRenderLastPiecesSummary(rows) {
+  var count = document.getElementById('rs-last-pieces-count');
+  if (!count) return;
+  var previous = _rs01Data;
+  _rs01Data = rows || [];
+  var lastPieces = rsGetLastPiecesRows('warehouse');
+  _rs01Data = previous;
+  var units = lastPieces.reduce(function(sum, row) {
+    return sum + Number(row.warehouse || 0);
+  }, 0);
+  count.innerText = units.toLocaleString() + ' unidades · ' + lastPieces.length.toLocaleString() + ' Specialcode + Color';
+}
+
+function rsRenderTable41(rows) {
+  var tbody = document.getElementById('rs-41-tbody');
+  var count = document.getElementById('rs-41-count');
+  if (!rows || !rows.length) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-[11px] font-black uppercase tracking-widest text-zinc-300">Sin productos por reponer</td></tr>';
+    if (count) count.innerText = '0 productos · 0 unidades';
+    rsRenderPieChart([]);
+    return;
+  }
+
+  if (tbody) {
+    tbody.innerHTML = rows.slice(0, 200).map(function(r) {
+      var urgency = Number(r.warehouse_stock || 0) > 5 ? 'text-emerald-600' : 'text-amber-500';
+      return '<tr class="hover:bg-blue-50/40 transition-colors">' +
+        '<td class="px-4 py-2.5 text-[11px] font-mono text-zinc-500">' + escRs(r.store_id) + '</td>' +
+        '<td class="px-4 py-2.5 text-[11px] font-black text-zinc-800">' + escRs(r.specialcode1) + '</td>' +
+        '<td class="px-4 py-2.5 text-[11px] text-zinc-700 max-w-[160px] truncate">' + escRs(r.name) + '</td>' +
+        '<td class="px-4 py-2.5 text-[11px] text-zinc-500">' + escRs(r.color) + '</td>' +
+        '<td class="px-4 py-2.5 text-[11px] text-zinc-500">' + escRs(r.size) + '</td>' +
+        '<td class="px-4 py-2.5 text-[11px] text-zinc-400">' + escRs(r.merch_sub_group) + '</td>' +
+        '<td class="px-4 py-2.5 text-[11px] font-black ' + urgency + '">' + (r.warehouse_stock || 0) + '</td>' +
+        '<td class="px-4 py-2.5 text-[11px] text-zinc-400 max-w-[120px] truncate">' + escRs(r.location_quantity) + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  var totalUnits = rows.reduce(function(sum, r) {
+    return sum + Number(r.warehouse_stock || 0);
+  }, 0);
+  if (count) count.innerText = rows.length.toLocaleString() + ' productos · ' + totalUnits.toLocaleString() + ' unidades';
+  rsRenderPieChart(rows);
+}
+
+function rsRenderTable55(rows) {
+  var tbody = document.getElementById('rs-55-tbody');
+  var count = document.getElementById('rs-55-count');
+  if (!rows || !rows.length) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-[11px] font-black uppercase tracking-widest text-zinc-300">Sin movimientos registrados</td></tr>';
+    if (count) count.innerText = '0 movimientos';
+    rsRenderMovementPieChart([]);
+    return;
+  }
+
+  if (tbody) {
+    tbody.innerHTML = rows.slice(0, 200).map(function(r) {
+      var toRayon = (r.scanning_type || '').toLowerCase().indexOf('depo') > -1 || String(r.from_warehouse || '').endsWith('D');
+      var dir = toRayon
+        ? '<span class="text-amber-500 font-black">→ Rayón</span>'
+        : '<span class="text-emerald-600 font-black">← Bodega</span>';
+      return '<tr class="hover:bg-blue-50/40 transition-colors">' +
+        '<td class="px-4 py-2.5 text-[11px] font-mono text-zinc-500">' + escRs(r.store_id) + '</td>' +
+        '<td class="px-4 py-2.5 text-[11px]">' + dir + '</td>' +
+        '<td class="px-4 py-2.5 text-[11px] font-mono text-zinc-400">' + escRs(r.from_warehouse) + ' → ' + escRs(r.to_warehouse) + '</td>' +
+        '<td class="px-4 py-2.5 text-[11px] font-black text-zinc-800 max-w-[140px] truncate">' + escRs(r.name) + '</td>' +
+        '<td class="px-4 py-2.5 text-[11px] text-zinc-500">' + escRs(r.color) + ' · ' + escRs(r.size) + '</td>' +
+        '<td class="px-4 py-2.5 text-[11px] font-black text-zinc-700">' + (r.quantity || 0) + '</td>' +
+        '<td class="px-4 py-2.5 text-[11px] text-zinc-400">' + escRs(r.scanning_date || '') + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  if (count) count.innerText = rows.length.toLocaleString() + ' movimientos';
+  rsRenderMovementPieChart(rows);
+}
+
+function rsRenderPieChart(rows) {
+  var chart = document.getElementById('rs-pie-chart');
+  var legend = document.getElementById('rs-pie-legend');
+  if (!chart || !legend) return;
+
+  var groups = {};
+  (rows || []).forEach(function(r) {
+    var group = String(r.top_group || 'N/A').trim() || 'N/A';
+    groups[group] = (groups[group] || 0) + Number(r.warehouse_stock || 0);
+  });
+
+  var sorted = Object.keys(groups)
+    .map(function(k) { return { label: k, value: groups[k] }; })
+    .filter(function(x) { return x.value > 0; })
+    .sort(function(a, b) { return b.value - a.value; })
+    .slice(0, 8);
+
+  var total = sorted.reduce(function(sum, x) { return sum + x.value; }, 0);
+  if (!total) {
+    chart.innerHTML = '<div class="h-full flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-zinc-300">Sin datos</div>';
+    legend.innerHTML = '';
+    return;
+  }
+
+  var palette = ['#1565C0','#13756B','#F59E24','#6D28D9','#DC2626','#1493A3','#64748B','#0D47A1'];
+  var start = 0;
+  var stops = sorted.map(function(row, idx) {
+    var pct = row.value / total * 100;
+    var stop = palette[idx % palette.length] + ' ' + start.toFixed(2) + '% ' + (start + pct).toFixed(2) + '%';
+    start += pct;
+    return stop;
+  }).join(', ');
+
+  chart.innerHTML = '<div class="h-full flex items-center justify-center"><div class="h-40 w-40 rounded-full" style="background:conic-gradient(' + stops + ');"><div class="relative left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"></div></div></div>';
+  legend.innerHTML = sorted.map(function(row, idx) {
+    var pct = total ? ((row.value / total) * 100).toFixed(1) : '0.0';
+    return '<div class="flex items-center justify-between gap-3">' +
+      '<div class="flex items-center gap-2 min-w-0">' +
+        '<span class="shrink-0 w-3 h-3 rounded-full" style="background:' + palette[idx % palette.length] + '"></span>' +
+        '<span class="text-[11px] font-black text-zinc-700 uppercase tracking-wide truncate">' + escRs(row.label) + '</span>' +
+      '</div>' +
+      '<span class="text-[11px] font-black text-zinc-400 shrink-0">' + row.value.toLocaleString() + ' · ' + pct + '%</span>' +
+    '</div>';
+  }).join('');
+}
+
+function rsRenderMovementPieChart(rows) {
+  var chart = document.getElementById('rs-55-pie-chart');
+  var legend = document.getElementById('rs-55-pie-legend');
+  if (!chart || !legend) return;
+
+  var groups = {};
+  (rows || []).forEach(function(r) {
+    var group = String(r.top_group || 'N/A').trim() || 'N/A';
+    groups[group] = (groups[group] || 0) + Number(r.quantity || 0);
+  });
+
+  var sorted = Object.keys(groups)
+    .map(function(k) { return { label: k, value: groups[k] }; })
+    .filter(function(x) { return x.value > 0; })
+    .sort(function(a, b) { return b.value - a.value; })
+    .slice(0, 8);
+
+  var total = sorted.reduce(function(sum, x) { return sum + x.value; }, 0);
+  if (!total) {
+    chart.innerHTML = '<div class="h-full flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-zinc-300">Sin datos</div>';
+    legend.innerHTML = '';
+    return;
+  }
+
+  var palette = ['#1565C0','#13756B','#F59E24','#6D28D9','#DC2626','#1493A3','#64748B','#0D47A1'];
+  var start = 0;
+  var stops = sorted.map(function(row, idx) {
+    var pct = row.value / total * 100;
+    var stop = palette[idx % palette.length] + ' ' + start.toFixed(2) + '% ' + (start + pct).toFixed(2) + '%';
+    start += pct;
+    return stop;
+  }).join(', ');
+
+  chart.innerHTML = '<div class="h-full flex items-center justify-center"><div class="h-40 w-40 rounded-full" style="background:conic-gradient(' + stops + ');"><div class="relative left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"></div></div></div>';
+  legend.innerHTML = sorted.map(function(row, idx) {
+    var pct = total ? ((row.value / total) * 100).toFixed(1) : '0.0';
+    return '<div class="flex items-center justify-between gap-3">' +
+      '<div class="flex items-center gap-2 min-w-0">' +
+        '<span class="shrink-0 w-3 h-3 rounded-full" style="background:' + palette[idx % palette.length] + '"></span>' +
+        '<span class="text-[11px] font-black text-zinc-700 uppercase tracking-wide truncate">' + escRs(row.label) + '</span>' +
+      '</div>' +
+      '<span class="text-[11px] font-black text-zinc-400 shrink-0">' + row.value.toLocaleString() + ' · ' + pct + '%</span>' +
+    '</div>';
+  }).join('');
+}
+
+function rsRenderRetailStoreWarehousePie(rows, field, chartId, legendId, metric) {
+  var chart = document.getElementById(chartId);
+  var legend = document.getElementById(legendId);
+  if (!chart || !legend) return;
+  metric = metric || 'warehouse';
+
+  var groups = {};
+  (rows || []).forEach(function(r) {
+    var qty = rsGetStockMetricQty(r, metric);
+    if (qty <= 0) return;
+    var group = rsResolveWarehouseGroup(r, field);
+    groups[group] = (groups[group] || 0) + qty;
+  });
+
+  var sorted = Object.keys(groups)
+    .map(function(k) { return { label: k, value: groups[k] }; })
+    .filter(function(x) { return x.value > 0; })
+    .sort(function(a, b) { return b.value - a.value; })
+    .slice(0, 8);
+
+  var total = sorted.reduce(function(sum, x) { return sum + x.value; }, 0);
+  if (!total) {
+    chart.innerHTML = '<div class="h-full flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-zinc-300">Sin datos</div>';
+    legend.innerHTML = '';
+    return;
+  }
+
+  var palette = ['#1565C0','#13756B','#F59E24','#6D28D9','#DC2626','#1493A3','#64748B','#0D47A1'];
+  var start = 0;
+  var stops = sorted.map(function(row, idx) {
+    var pct = row.value / total * 100;
+    var stop = palette[idx % palette.length] + ' ' + start.toFixed(2) + '% ' + (start + pct).toFixed(2) + '%';
+    start += pct;
+    return stop;
+  }).join(', ');
+
+  chart.innerHTML = '<div class="h-full flex items-center justify-center"><div class="h-40 w-40 rounded-full" style="background:conic-gradient(' + stops + ');"><div class="relative left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"></div></div></div>';
+  legend.innerHTML = sorted.map(function(row, idx) {
+    var pct = total ? ((row.value / total) * 100).toFixed(1) : '0.0';
+    return '<div class="flex items-center justify-between gap-3">' +
+      '<div class="flex items-center gap-2 min-w-0">' +
+        '<span class="shrink-0 w-3 h-3 rounded-full" style="background:' + palette[idx % palette.length] + '"></span>' +
+        '<span class="text-[11px] font-black text-zinc-700 uppercase tracking-wide truncate">' + escRs(row.label) + '</span>' +
+      '</div>' +
+      '<span class="text-[11px] font-black text-zinc-400 shrink-0">' + row.value.toLocaleString() + ' · ' + pct + '%</span>' +
+    '</div>';
+  }).join('');
+}
+
+function rsPopulateMerchSeasonFilter(rows) {
+  var container = document.getElementById('rs-01-merch-season-filter');
+  if (!container) return;
+  var metric = rsGetReport1Metric();
+
+  var seasons = {};
+  (rows || []).forEach(function(row) {
+    if (rsGetStockMetricQty(row, metric) <= 0) return;
+    var season = rsResolveWarehouseGroup(row, 'season');
+    seasons[season] = true;
+  });
+
+  var sorted = Object.keys(seasons).sort(function(a, b) {
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  var pills = [{ label: 'Todas', value: 'TODAS', checked: true }].concat(sorted.map(function(season) {
+    return { label: season, value: season, checked: false };
+  }));
+
+  container.innerHTML = pills.map(function(item) {
+    return '<label class="flex items-center gap-2 rounded-xl px-2.5 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:bg-blue-50 cursor-pointer select-none">' +
+      '<input type="checkbox" class="rs-merch-season-check accent-[#1565C0]" value="' + escRs(item.value) + '"' + (item.checked ? ' checked' : '') + ' onchange="rsHandleMerchSeasonToggle(this)">' +
+      '<span>' + escRs(item.label) + '</span>' +
+    '</label>';
+  }).join('');
+  rsUpdateMerchSeasonLabel();
+  if (!window._rsMerchSeasonDropdownBound) {
+    window._rsMerchSeasonDropdownBound = true;
+    document.addEventListener('click', function(event) {
+      var menu = document.getElementById('rs-01-merch-season-filter');
+      var button = event.target.closest && event.target.closest('[onclick="rsToggleMerchSeasonDropdown(event)"]');
+      if (menu && !menu.contains(event.target) && !button) menu.classList.add('hidden');
+    });
+  }
+}
+
+function rsUpdateReport1MetricLabels() {
+  var metric = rsGetReport1Metric();
+  var label = rsMetricLabel(metric);
+  var lastMetric = rsGetLastPiecesMetric();
+  var lastLabel = rsMetricLabel(lastMetric);
+  var setText = function(id, text) {
+    var el = document.getElementById(id);
+    if (el) el.innerText = text;
+  };
+  setText('rs-01-season-eyebrow', 'Reporte 1 · ' + label);
+  setText('rs-01-season-subtitle', '% de unidades en ' + label.toLowerCase() + ' por temporada');
+  setText('rs-01-family-eyebrow', 'Reporte 1 · ' + label);
+  setText('rs-01-family-subtitle', '% de unidades en ' + label.toLowerCase() + ' por familia de producto');
+  setText('rs-01-merch-eyebrow', 'Reporte 1 · ' + label);
+  setText('rs-01-merch-subtitle', '% de unidades en ' + label.toLowerCase() + ' por grupo comercial');
+  setText('rs-01-last-pieces-eyebrow', 'Reporte 1 · ' + lastLabel);
+  setText('rs-01-last-pieces-subtitle', 'Contribución de Specialcode + Color ≤ 3 en ' + lastLabel.toLowerCase());
+}
+
+function rsRenderReport1ContributionCharts() {
+  var metric = rsGetReport1Metric();
+  rsPopulateMerchSeasonFilter(_rs01Data);
+  rsUpdateReport1MetricLabels();
+  rsRenderRetailStoreWarehousePie(_rs01Data, 'product_family', 'rs-01-family-pie-chart', 'rs-01-family-pie-legend', metric);
+  rsRenderRetailStoreWarehousePie(_rs01Data, 'season', 'rs-01-season-pie-chart', 'rs-01-season-pie-legend', metric);
+  rsRenderMerchGroupBySeason();
+}
+
+function rsRenderLastPiecesPieChart() {
+  var metric = rsGetLastPiecesMetric();
+  rsUpdateReport1MetricLabels();
+  var rows = rsGetLastPiecesRows(metric);
+  rsRenderRetailStoreWarehousePie(rows, 'merch_group', 'rs-01-last-pieces-pie-chart', 'rs-01-last-pieces-pie-legend', 'warehouse');
+}
+
+function rsToggleMerchSeasonDropdown(event) {
+  if (event) event.stopPropagation();
+  var menu = document.getElementById('rs-01-merch-season-filter');
+  if (menu) menu.classList.toggle('hidden');
+}
+
+function rsHandleMerchSeasonToggle(input) {
+  var checks = Array.prototype.slice.call(document.querySelectorAll('.rs-merch-season-check'));
+  var all = checks.find(function(check) { return check.value === 'TODAS'; });
+
+  if (input && input.value === 'TODAS' && input.checked) {
+    checks.forEach(function(check) {
+      if (check.value !== 'TODAS') check.checked = false;
+    });
+  } else if (input && input.value !== 'TODAS' && input.checked && all) {
+    all.checked = false;
+  }
+
+  var selectedSpecific = checks.filter(function(check) {
+    return check.value !== 'TODAS' && check.checked;
+  });
+  if (!selectedSpecific.length && all) all.checked = true;
+
+  rsUpdateMerchSeasonLabel();
+  rsRenderMerchGroupBySeason();
+}
+
+function rsUpdateMerchSeasonLabel() {
+  var label = document.getElementById('rs-01-merch-season-label');
+  if (!label) return;
+  var selected = rsGetSelectedMerchSeasons();
+  if (!selected.length) {
+    label.innerText = 'Season: Todas';
+  } else if (selected.length === 1) {
+    label.innerText = 'Season: ' + selected[0];
+  } else {
+    label.innerText = 'Season: ' + selected.length;
+  }
+}
+
+function rsGetSelectedMerchSeasons() {
+  return Array.prototype.slice.call(document.querySelectorAll('.rs-merch-season-check'))
+    .filter(function(check) { return check.checked && check.value !== 'TODAS'; })
+    .map(function(check) { return check.value; });
+}
+
+function rsRenderMerchGroupBySeason() {
+  var metric = rsGetReport1Metric();
+  var selected = rsGetSelectedMerchSeasons();
+  var selectedMap = {};
+  selected.forEach(function(season) { selectedMap[season] = true; });
+
+  var rows = selected.length
+    ? (_rs01Data || []).filter(function(row) {
+        return rsGetStockMetricQty(row, metric) > 0 && !!selectedMap[rsResolveWarehouseGroup(row, 'season')];
+      })
+    : (_rs01Data || []).filter(function(row) {
+        return rsGetStockMetricQty(row, metric) > 0;
+      });
+
+  rsRenderRetailStoreWarehousePie(rows, 'merch_group', 'rs-01-merch-pie-chart', 'rs-01-merch-pie-legend', metric);
+}
+
+function rsResolveWarehouseGroup(row, field) {
+  var value = String(row && row[field] || '').trim();
+  if (value) return value;
+
+  if (field === 'season') {
+    var code = String(row && row.specialcode1 || '').trim().toUpperCase();
+    var seasonMatch = code.match(/^[A-Z][0-9]/);
+    return seasonMatch ? seasonMatch[0] : 'N/A';
+  }
+
+  if (field === 'merch_group') {
+    var subGroup = String(row && row.merch_sub_group || '').trim().toUpperCase();
+    return subGroup.length >= 2 ? subGroup.slice(0, 2) : 'N/A';
+  }
+
+  if (field === 'product_family') {
+    return 'UNKNOWN';
+  }
+
+  return 'N/A';
+}
+
+function rsDownloadRS41() {
+  if (!_rs41Data || !_rs41Data.length) {
+    alert('No hay datos para descargar.');
+    return;
+  }
+
+  var store = (sessionStorage.getItem('activeStore') || 'tienda').trim();
+  var today = new Date();
+  var dateStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  var headers = ['País','Tienda','Fecha Reporte','Código','Nombre','Color','Talla','Top Group','Sub Group','Línea','Rayón Stock','Bodega Stock','Reservado','Stock Total','Ubicación'];
+  var rows = _rs41Data.map(function(r) {
+    return [r.country, r.store_id, r.report_date, r.specialcode1, r.name, r.color, r.size, r.top_group, r.merch_sub_group, r.line, r.rayon_stock, r.warehouse_stock, r.reserved_stock, r.total_stock, r.location_quantity]
+      .map(function(v) {
+        var s = v == null ? '' : String(v).trim();
+        return s.indexOf(',') > -1 || s.indexOf('"') > -1 || s.indexOf('\n') > -1 ? '"' + s.replace(/"/g, '""') + '"' : s;
+      }).join(',');
+  });
+
+  var csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'RS41_' + store + '_' + dateStr + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function rsDownloadRS55() {
+  if (!_rs55Data || !_rs55Data.length) {
+    alert('No hay datos para descargar.');
+    return;
+  }
+
+  var store = (sessionStorage.getItem('activeStore') || 'tienda').trim();
+  var today = new Date();
+  var dateStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  var headers = ['Tienda','Desde Bodega','Hacia Bodega','Nombre','Color','Talla','Top Group','Cantidad','Fecha','Tipo'];
+  var rows = _rs55Data.map(function(r) {
+    return [r.store_id, r.from_warehouse, r.to_warehouse, r.name, r.color, r.size, r.top_group, r.quantity, r.scanning_date, r.scanning_type]
+      .map(function(v) {
+        var s = v == null ? '' : String(v).trim();
+        return s.indexOf(',') > -1 || s.indexOf('"') > -1 || s.indexOf('\n') > -1 ? '"' + s.replace(/"/g, '""') + '"' : s;
+      }).join(',');
+  });
+
+  var csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'RS55_' + store + '_' + dateStr + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function rsDownloadNegativosRayon() {
+  var rowsData = rsGetNegativosRayonRows();
+  if (!rowsData.length) {
+    alert('No hay negativos en rayón para descargar.');
+    return;
+  }
+
+  var store = (sessionStorage.getItem('activeStore') || 'tienda').trim();
+  var today = new Date();
+  var dateStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  var headers = ['País','Tienda','Fecha Reporte','Código','Nombre','Color','Talla','Product Family','Season','Merch Group','Sub Group','Warehouse','Rayón','Stock Total','Última Recepción','Ubicación'];
+  var rows = rowsData.map(function(r) {
+    return [
+      r.country, r.store_id, r.report_date, r.specialcode1, r.name, r.color, r.size,
+      rsResolveWarehouseGroup(r, 'product_family'),
+      rsResolveWarehouseGroup(r, 'season'), rsResolveWarehouseGroup(r, 'merch_group'), r.merch_sub_group,
+      r.warehouse, r.rayon, r.total_stock, r.last_acceptance_date, r.location_quantity
+    ].map(function(v) {
+      var s = v == null ? '' : String(v).trim();
+      return s.indexOf(',') > -1 || s.indexOf('"') > -1 || s.indexOf('\n') > -1 ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }).join(',');
+  });
+
+  var csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'RS01_Negativos_Rayon_' + store + '_' + dateStr + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function rsDownloadLastPieces() {
+  var rowsData = rsGetLastPiecesRows();
+  if (!rowsData.length) {
+    alert('No hay Last Pieces para descargar.');
+    return;
+  }
+
+  var store = (sessionStorage.getItem('activeStore') || 'tienda').trim();
+  var today = new Date();
+  var dateStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  var headers = ['País','Tienda','Fecha Reporte','Código','Nombre','Color','Product Family','Season','Merch Group','Sub Group','Warehouse Total','Detalle Tallas','Última Recepción','Ubicación'];
+  var rows = rowsData.map(function(r) {
+    return [
+      r.country, r.store_id, r.report_date, r.specialcode1, r.name, r.color,
+      r.product_family, r.season, r.merch_group, r.merch_sub_group, r.warehouse, r.size_detail,
+      r.last_acceptance_date, r.location_detail
+    ].map(function(v) {
+      var s = v == null ? '' : String(v).trim();
+      return s.indexOf(',') > -1 || s.indexOf('"') > -1 || s.indexOf('\n') > -1 ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }).join(',');
+  });
+
+  var csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'RS01_Last_Pieces_' + store + '_' + dateStr + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function escRs(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>

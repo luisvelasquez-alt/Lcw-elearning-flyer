@@ -1,0 +1,146 @@
+<div id="rendimiento-container" class="animate-in fade-in slide-in-from-bottom-4 duration-700">
+
+  <!-- Header -->
+  <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div>
+      <span class="text-[#1565C0] font-black uppercase tracking-[0.2em] text-xs">Enocta Training Platform</span>
+      <h2 class="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 mt-2">E-learnings</h2>
+      <p id="rend-meta" class="text-[11px] text-zinc-400 font-bold mt-1 uppercase tracking-widest">Cargando datos...</p>
+    </div>
+
+    <!-- Filtros (ADMIN ve todos; tienda solo ve Status) -->
+    <div class="flex flex-wrap gap-3 items-center">
+
+      <div id="rend-filtro-pais" class="bg-white p-4 rounded-[1.5rem] border border-blue-100 shadow-sm flex flex-col min-w-[160px] hidden">
+        <span class="text-[10px] uppercase font-bold text-zinc-400 tracking-widest">País</span>
+        <select id="rend-filter-pais" onchange="applyRendimientoFilters()" class="bg-transparent border-none font-black text-sm p-0 focus:ring-0 cursor-pointer text-[#1565C0] uppercase">
+          <option value="TODOS">🌍 Todos</option>
+          <option value="VENEZUELA">🇻🇪 Venezuela</option>
+          <option value="DOMINICAN REBUPLIC">🇩🇴 Dominican Rep.</option>
+          <option value="PANAMA">🇵🇦 Panamá</option>
+          <option value="GUATEMALA">🇬🇹 Guatemala</option>
+          <option value="COSTA RICA">🇨🇷 Costa Rica</option>
+          <option value="CURACAO">🇨🇼 Curacao</option>
+          <option value="EL SALVADOR">🇸🇻 El Salvador</option>
+        </select>
+      </div>
+
+      <div class="bg-white p-4 rounded-[1.5rem] border border-blue-100 shadow-sm flex flex-col min-w-[160px]">
+        <span class="text-[10px] uppercase font-bold text-zinc-400 tracking-widest">Status</span>
+        <select id="rend-filter-status" onchange="applyRendimientoFilters()" class="bg-transparent border-none font-black text-sm p-0 focus:ring-0 cursor-pointer text-zinc-800 uppercase">
+          <option value="TODOS">Todos</option>
+          <option value="NOT STARTED">Not Started</option>
+          <option value="IN PROGRESS">In Progress</option>
+        </select>
+      </div>
+
+      <div id="rend-filtro-tienda" class="bg-white p-4 rounded-[1.5rem] border border-blue-100 shadow-sm flex-col min-w-[140px] hidden">
+        <span class="text-[10px] uppercase font-bold text-zinc-400 tracking-widest">Tienda</span>
+        <select id="rend-filter-tienda" onchange="applyRendimientoFilters()" class="bg-transparent border-none font-black text-sm p-0 focus:ring-0 cursor-pointer text-zinc-800 uppercase">
+          <option value="TODAS">Todas</option>
+        </select>
+      </div>
+
+      <button onclick="initRendimiento()" class="bg-zinc-900 text-white p-3 rounded-xl hover:bg-[#1565C0] transition-all flex items-center justify-center shadow-lg group" title="Actualizar">
+        <span class="material-symbols-outlined text-sm group-hover:rotate-180 transition-transform duration-500">sync</span>
+      </button>
+
+      <button onclick="exportRendimientoCSV()" class="bg-white border border-blue-100 text-[#1565C0] p-3 rounded-xl hover:bg-blue-50 transition-all flex items-center justify-center shadow-sm" title="Exportar CSV">
+        <span class="material-symbols-outlined text-sm">download</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading state -->
+  <div id="rend-loading" class="flex flex-col items-center justify-center py-24">
+    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1565C0]"></div>
+    <p class="mt-4 text-[10px] font-black tracking-[0.2em] text-zinc-400 uppercase">Cargando Reporte Enocta...</p>
+  </div>
+
+  <!-- Content (hidden until loaded) -->
+  <div id="rend-content" class="hidden">
+
+    <!-- Summary cards por país -->
+    <section id="rend-stats-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+      <!-- Populated by JS -->
+    </section>
+
+    <!-- Total global card -->
+    <div class="bg-[#0D47A1] p-6 rounded-[2rem] shadow-xl border border-blue-900 relative overflow-hidden mb-8">
+      <div class="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-12 translate-x-12"></div>
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="text-blue-300 text-[10px] font-black uppercase tracking-widest">Total Actividades Pendientes</span>
+          <h3 id="rend-total" class="text-white text-5xl font-black tracking-tighter mt-1">0</h3>
+          <p id="rend-report-date" class="text-blue-300 text-[11px] font-bold mt-1 uppercase tracking-widest"></p>
+        </div>
+        <div class="flex gap-6">
+          <div class="text-center">
+            <p class="text-blue-300 text-[10px] font-black uppercase tracking-widest">Not Started</p>
+            <p id="rend-count-ns" class="text-white text-3xl font-black">0</p>
+          </div>
+          <div class="h-12 w-[1px] bg-white/20 self-center"></div>
+          <div class="text-center">
+            <p class="text-blue-300 text-[10px] font-black uppercase tracking-widest">In Progress</p>
+            <p id="rend-count-ip" class="text-white text-3xl font-black">0</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data table -->
+    <div class="bg-white rounded-[2.5rem] border border-blue-100 shadow-sm overflow-hidden">
+      <div class="px-8 py-5 border-b border-blue-50 flex justify-between items-center bg-blue-50/30">
+        <span class="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Detalle de Actividades Pendientes</span>
+        <span id="rend-table-count" class="text-[10px] font-bold text-zinc-400"></span>
+      </div>
+
+      <!-- Search -->
+      <div class="px-8 py-4 border-b border-blue-50">
+        <input id="rend-search"
+               type="text"
+               placeholder="Buscar actividad, tienda, cargo..."
+               oninput="filterRendTable()"
+               class="w-full md:w-96 bg-blue-50/50 border border-blue-100 rounded-xl px-4 py-2 text-[11px] font-bold text-zinc-700 focus:outline-none focus:border-[#1565C0] placeholder:text-zinc-400 placeholder:font-normal">
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="text-zinc-400 text-[10px] uppercase font-black tracking-widest border-b border-blue-50">
+              <th class="px-6 py-4 text-center">✓</th>
+              <th class="px-6 py-4">País</th>
+              <th class="px-6 py-4">Tienda</th>
+              <th class="px-6 py-4">Store / Dept</th>
+              <th class="px-6 py-4">Actividad</th>
+              <th class="px-6 py-4 text-center">Status</th>
+              <th class="px-6 py-4">Usuario</th>
+              <th class="px-6 py-4">Cargo</th>
+              <th class="px-6 py-4">F. Registro</th>
+            </tr>
+          </thead>
+          <tbody id="rend-tbody" class="divide-y divide-blue-50">
+            <tr><td colspan="8" class="px-6 py-8 text-center text-zinc-400 text-[11px]">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination info -->
+      <div class="px-8 py-4 border-t border-blue-50 flex justify-between items-center">
+        <span id="rend-page-info" class="text-[10px] font-bold text-zinc-400"></span>
+        <div class="flex gap-2">
+          <button onclick="rendPage(-1)" class="px-3 py-1.5 rounded-lg border border-blue-100 text-[10px] font-black text-zinc-600 hover:bg-blue-50 transition-colors disabled:opacity-30" id="rend-btn-prev">← PREV</button>
+          <button onclick="rendPage(+1)" class="px-3 py-1.5 rounded-lg border border-blue-100 text-[10px] font-black text-zinc-600 hover:bg-blue-50 transition-colors disabled:opacity-30" id="rend-btn-next">NEXT →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div id="rend-empty" class="hidden flex flex-col items-center justify-center py-24 text-center">
+    <span id="rend-empty-icon" class="material-symbols-outlined text-6xl text-zinc-300 mb-4">school</span>
+    <p id="rend-empty-title" class="font-black text-zinc-400 uppercase tracking-widest text-sm">Sin datos de Enocta aún</p>
+    <p id="rend-empty-message" class="text-zinc-400 text-[11px] mt-2 max-w-xs">El reporte se procesa automáticamente cada lunes. Para forzar el procesamiento, ejecuta <strong>processEnoctaReport()</strong> desde el editor de Apps Script.</p>
+  </div>
+
+</div>
