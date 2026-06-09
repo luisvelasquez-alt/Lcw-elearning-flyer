@@ -3461,7 +3461,7 @@ function rsRenderMovementPieChart(rows) {
   }).join('');
 }
 
-function rsRenderRetailStoreWarehousePie(rows, field, chartId, legendId, metric) {
+function rsRenderRetailStoreWarehousePie(rows, field, chartId, legendId, metric, denominatorMap) {
   var chart = document.getElementById(chartId);
   var legend = document.getElementById(legendId);
   if (!chart || !legend) return;
@@ -3491,7 +3491,8 @@ function rsRenderRetailStoreWarehousePie(rows, field, chartId, legendId, metric)
   var palette = ['#1565C0','#13756B','#F59E24','#6D28D9','#DC2626','#1493A3','#64748B','#0D47A1'];
 
   var legendHtml = sorted.map(function(row, idx) {
-    var pct = total ? ((row.value / total) * 100).toFixed(1) : '0.0';
+    var denom = denominatorMap ? (denominatorMap[row.label] || total) : total;
+    var pct = ((row.value / denom) * 100).toFixed(1);
     return '<div class="flex items-start gap-2">' +
       '<span class="shrink-0 w-2.5 h-2.5 mt-0.5 rounded-full" style="background:' + palette[idx % palette.length] + '"></span>' +
       '<div class="min-w-0">' +
@@ -3502,10 +3503,12 @@ function rsRenderRetailStoreWarehousePie(rows, field, chartId, legendId, metric)
   }).join('');
 
   if (sorted.length === 1) {
+    var singleDenom = denominatorMap ? (denominatorMap[sorted[0].label] || total) : total;
+    var singlePct = ((sorted[0].value / singleDenom) * 100).toFixed(1) + '%';
     chart.innerHTML = '<div class="h-full flex items-center justify-center">' +
       '<div class="h-36 w-36 rounded-full flex flex-col items-center justify-center gap-0.5" style="background:' + palette[0] + '">' +
         '<span class="text-white font-black text-[10px] uppercase tracking-[0.12em] text-center px-2 leading-tight">' + escRs(sorted[0].label) + '</span>' +
-        '<span class="text-white/80 font-black text-xl">100%</span>' +
+        '<span class="text-white/80 font-black text-xl">' + singlePct + '</span>' +
       '</div>' +
     '</div>';
     legend.innerHTML = legendHtml;
@@ -3593,7 +3596,14 @@ function rsRenderLastPiecesPieChart() {
   var metric = rsGetLastPiecesMetric();
   rsUpdateReport1MetricLabels();
   var rows = rsGetLastPiecesRows(metric);
-  rsRenderRetailStoreWarehousePie(rows, 'merch_group', 'rs-01-last-pieces-pie-chart', 'rs-01-last-pieces-pie-legend', 'warehouse');
+  var denomMap = {};
+  (_rs01Data || []).forEach(function(r) {
+    var qty = rsGetStockMetricQty(r, metric);
+    if (qty <= 0) return;
+    var group = rsResolveWarehouseGroup(r, 'merch_group');
+    denomMap[group] = (denomMap[group] || 0) + qty;
+  });
+  rsRenderRetailStoreWarehousePie(rows, 'merch_group', 'rs-01-last-pieces-pie-chart', 'rs-01-last-pieces-pie-legend', 'warehouse', denomMap);
 }
 
 function rsToggleMerchSeasonDropdown(event) {
