@@ -5,16 +5,24 @@
       <h2 class="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 mt-1">Retail Store</h2>
       <p id="rs-meta" class="text-[11px] text-zinc-400 font-bold mt-1 uppercase tracking-widest">Cargando...</p>
     </div>
-    <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
       <div id="rs-admin-store-switcher" class="hidden">
         <select id="rs-admin-store-select" onchange="rsSwitchAdminRetailStore(this.value)"
           class="h-11 min-w-[150px] rounded-xl border border-blue-100 bg-white px-3 text-[11px] font-black uppercase tracking-widest text-zinc-700 outline-none focus:border-[#1565C0]">
           <option value="">Cargando...</option>
         </select>
       </div>
-      <select id="rs-family-filter" onchange="rsApplyFamilyFilter()"
-        class="h-11 min-w-[160px] rounded-xl border border-blue-100 bg-white px-3 text-[11px] font-black uppercase tracking-widest text-zinc-700 outline-none focus:border-[#1565C0]">
+      <select id="rs-family-filter" onchange="rsApplyGlobalFilters()"
+        class="h-11 min-w-[150px] rounded-xl border border-blue-100 bg-white px-3 text-[11px] font-black uppercase tracking-widest text-zinc-700 outline-none focus:border-[#1565C0]">
         <option value="">Familia: Todas</option>
+      </select>
+      <select id="rs-season-filter" onchange="rsApplyGlobalFilters()"
+        class="h-11 min-w-[140px] rounded-xl border border-blue-100 bg-white px-3 text-[11px] font-black uppercase tracking-widest text-zinc-700 outline-none focus:border-[#1565C0]">
+        <option value="">Season: Todas</option>
+      </select>
+      <select id="rs-dept-filter" onchange="rsApplyGlobalFilters()"
+        class="h-11 min-w-[140px] rounded-xl border border-blue-100 bg-white px-3 text-[11px] font-black uppercase tracking-widest text-zinc-700 outline-none focus:border-[#1565C0]">
+        <option value="">Depto: Todos</option>
       </select>
       <button onclick="initRetailStore()"
         class="self-start md:self-auto bg-zinc-900 text-white px-5 py-3 rounded-2xl hover:bg-[#1565C0] transition-all flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.14em] shadow-lg">

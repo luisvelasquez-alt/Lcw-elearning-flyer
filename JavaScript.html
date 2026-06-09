@@ -2866,13 +2866,11 @@ function rsLoadRetailStoreData() {
       _rs41Data = _rs41DataAll.slice();
       _rs55DataAll = data.rs55 || [];
       _rs55Data = _rs55DataAll.slice();
-      var familyFilterEl = document.getElementById('rs-family-filter');
-      if (familyFilterEl) familyFilterEl.value = '';
-      ['rs-lp-season-filter','rs-lp-dept-filter'].forEach(function(id) {
+      ['rs-family-filter','rs-season-filter','rs-dept-filter','rs-lp-season-filter','rs-lp-dept-filter'].forEach(function(id) {
         var el = document.getElementById(id); if (el) el.value = '';
       });
       rsRenderKpis(data.kpis);
-      rsPopulateFamilyFilter(_rs01DataAll);
+      rsPopulateHeaderFilters();
       rsPopulateMerchSeasonFilter(_rs01Data);
       rsPopulateLPFilters();
       rsRenderReport1ContributionCharts();
@@ -3091,31 +3089,64 @@ function rsPopulateFamilyFilter(rows) {
     }).join('');
 }
 
-function rsApplyFamilyFilter() {
-  var select = document.getElementById('rs-family-filter');
-  var family = select ? select.value : '';
+function rsApplyFamilyFilter() { rsApplyGlobalFilters(); }
 
-  _rs01Data = family
-    ? (_rs01DataAll || []).filter(function(row) {
-        return rsResolveWarehouseGroup(row, 'product_family') === family;
-      })
-    : (_rs01DataAll || []).slice();
-
-  if (family) {
-    _rs41Data = (_rs41DataAll || []).filter(function(row) {
-      var sg = String(row.merch_sub_group || '').trim().toUpperCase();
-      var derived = _RS_SHOES_SG[sg] ? 'SHOES' : _RS_ACC_SG[sg] ? 'ACCESSORIES' : (sg ? 'APPAREL' : 'UNKNOWN');
-      return derived === family;
-    });
-    _rs55Data = (_rs55DataAll || []).filter(function(row) {
-      var sg = String(row.merch_sub_group || '').trim().toUpperCase();
-      var derived = _RS_SHOES_SG[sg] ? 'SHOES' : _RS_ACC_SG[sg] ? 'ACCESSORIES' : (sg ? 'APPAREL' : 'UNKNOWN');
-      return derived === family;
-    });
-  } else {
-    _rs41Data = (_rs41DataAll || []).slice();
-    _rs55Data = (_rs55DataAll || []).slice();
+function rsPopulateHeaderFilters() {
+  rsPopulateFamilyFilter(_rs01DataAll);
+  var seasonSel = document.getElementById('rs-season-filter');
+  var deptSel   = document.getElementById('rs-dept-filter');
+  var seasons = {}, depts = {};
+  (_rs01DataAll || []).forEach(function(row) {
+    var s = rsResolveWarehouseGroup(row, 'season');
+    if (s && s !== 'UNKNOWN') seasons[s] = true;
+    var sg = String(row.merch_sub_group || '').trim().toUpperCase();
+    if (sg.length >= 2) depts[sg.substring(0, 2)] = true;
+  });
+  if (seasonSel) {
+    var curS = seasonSel.value;
+    seasonSel.innerHTML = '<option value="">Season: Todas</option>' +
+      Object.keys(seasons).sort().map(function(s) {
+        return '<option value="' + escRs(s) + '"' + (s === curS ? ' selected' : '') + '>' + escRs(s) + '</option>';
+      }).join('');
   }
+  if (deptSel) {
+    var curD = deptSel.value;
+    deptSel.innerHTML = '<option value="">Depto: Todos</option>' +
+      Object.keys(depts).sort().map(function(d) {
+        return '<option value="' + escRs(d) + '"' + (d === curD ? ' selected' : '') + '>' + escRs(d) + '</option>';
+      }).join('');
+  }
+}
+
+function rsApplyGlobalFilters() {
+  var family = (document.getElementById('rs-family-filter') || {}).value || '';
+  var season = (document.getElementById('rs-season-filter') || {}).value || '';
+  var dept   = (document.getElementById('rs-dept-filter')   || {}).value || '';
+
+  _rs01Data = (_rs01DataAll || []).filter(function(row) {
+    if (family && rsResolveWarehouseGroup(row, 'product_family') !== family) return false;
+    if (season && rsResolveWarehouseGroup(row, 'season') !== season) return false;
+    if (dept) {
+      var sg = String(row.merch_sub_group || '').trim().toUpperCase();
+      if (sg.substring(0, 2) !== dept) return false;
+    }
+    return true;
+  });
+
+  var passRow4155 = function(row) {
+    if (family) {
+      var sg = String(row.merch_sub_group || '').trim().toUpperCase();
+      var derived = _RS_SHOES_SG[sg] ? 'SHOES' : _RS_ACC_SG[sg] ? 'ACCESSORIES' : (sg ? 'APPAREL' : 'UNKNOWN');
+      if (derived !== family) return false;
+    }
+    if (dept) {
+      var sg2 = String(row.merch_sub_group || '').trim().toUpperCase();
+      if (sg2.substring(0, 2) !== dept) return false;
+    }
+    return true;
+  };
+  _rs41Data = (_rs41DataAll || []).filter(passRow4155);
+  _rs55Data = (_rs55DataAll || []).filter(passRow4155);
 
   var porReponer = _rs41Data.reduce(function(sum, r) { return sum + Number(r.warehouse_stock || 0); }, 0);
   var movimientos = _rs55Data.reduce(function(sum, r) { return sum + Number(r.quantity || 0); }, 0);
