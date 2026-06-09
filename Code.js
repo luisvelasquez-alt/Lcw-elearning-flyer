@@ -2559,7 +2559,7 @@ function getRetailStoreData(storeName, role) {
     if (storeFilter) params41 += '&store_id=eq.' + encodeURIComponent(storeFilter);
     var rs41 = supabaseGetAll_('rs_41_inventario', params41, 1000, rowCap);
 
-    var params55 = 'select=store_id,specialcode1,from_warehouse,to_warehouse,name,color,size,top_group,quantity,scanning_date,scanning_type&order=scanning_date.desc';
+    var params55 = 'select=store_id,from_warehouse,to_warehouse,name,color,size,top_group,merch_sub_group,quantity,scanning_date,scanning_type&order=scanning_date.desc';
     if (storeFilter) params55 += '&store_id=eq.' + encodeURIComponent(storeFilter);
     var rs55 = supabaseGetAll_('rs_55_movimientos', params55, 1000, rowCap);
     var rs55DepoRayon = rs55.filter(isRetailStoreDepoToRayon_);

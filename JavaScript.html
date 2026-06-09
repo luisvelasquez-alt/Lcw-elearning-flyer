@@ -3103,14 +3103,10 @@ function rsApplyFamilyFilter() {
       var derived = _RS_SHOES_SG[sg] ? 'SHOES' : _RS_ACC_SG[sg] ? 'ACCESSORIES' : (sg ? 'APPAREL' : 'UNKNOWN');
       return derived === family;
     });
-    var sc1Family = {};
-    (_rs01DataAll || []).forEach(function(row) {
-      var sc1 = String(row.specialcode1 || '').trim().toUpperCase();
-      if (sc1) sc1Family[sc1] = rsResolveWarehouseGroup(row, 'product_family');
-    });
     _rs55Data = (_rs55DataAll || []).filter(function(row) {
-      var sc1 = String(row.specialcode1 || '').trim().toUpperCase();
-      return sc1Family[sc1] === family;
+      var sg = String(row.merch_sub_group || '').trim().toUpperCase();
+      var derived = _RS_SHOES_SG[sg] ? 'SHOES' : _RS_ACC_SG[sg] ? 'ACCESSORIES' : (sg ? 'APPAREL' : 'UNKNOWN');
+      return derived === family;
     });
   } else {
     _rs41Data = (_rs41DataAll || []).slice();
