@@ -2868,9 +2868,13 @@ function rsLoadRetailStoreData() {
       _rs55Data = _rs55DataAll.slice();
       var familyFilterEl = document.getElementById('rs-family-filter');
       if (familyFilterEl) familyFilterEl.value = '';
+      ['rs-lp-season-filter','rs-lp-dept-filter'].forEach(function(id) {
+        var el = document.getElementById(id); if (el) el.value = '';
+      });
       rsRenderKpis(data.kpis);
       rsPopulateFamilyFilter(_rs01DataAll);
       rsPopulateMerchSeasonFilter(_rs01Data);
+      rsPopulateLPFilters();
       rsRenderReport1ContributionCharts();
       rsRenderLastPiecesPieChart();
       rsRenderTable41(data.rs41);
@@ -3121,6 +3125,7 @@ function rsApplyFamilyFilter() {
 
   rsRecalcKpisFromRS01(_rs01Data);
   rsPopulateMerchSeasonFilter(_rs01Data);
+  rsPopulateLPFilters();
   rsRenderReport1ContributionCharts();
   rsRenderLastPiecesPieChart();
   rsRenderNegativosSummary(_rs01Data);
@@ -3199,10 +3204,17 @@ function rsMetricLabel(metric) {
 
 function rsGetLastPiecesRows(metric) {
   metric = metric || 'warehouse';
+  var lpSeason = (document.getElementById('rs-lp-season-filter') || {}).value || '';
+  var lpDept = (document.getElementById('rs-lp-dept-filter') || {}).value || '';
   var groups = {};
   (_rs01Data || []).forEach(function(row) {
     var qty = rsGetStockMetricQty(row, metric);
     if (qty <= 0) return;
+    if (lpSeason && rsResolveWarehouseGroup(row, 'season') !== lpSeason) return;
+    if (lpDept) {
+      var sg = String(row.merch_sub_group || '').trim().toUpperCase();
+      if (sg.substring(0, 2) !== lpDept) return;
+    }
     var code = String(row.specialcode1 || '').trim();
     var color = String(row.color || '').trim();
     if (!code && !color) return;
@@ -3258,6 +3270,38 @@ function rsRenderLastPiecesSummary(rows) {
     return sum + Number(row.warehouse || 0);
   }, 0);
   count.innerText = units.toLocaleString() + ' unidades · ' + lastPieces.length.toLocaleString() + ' Specialcode + Color';
+}
+
+function rsPopulateLPFilters() {
+  var seasonSel = document.getElementById('rs-lp-season-filter');
+  var deptSel = document.getElementById('rs-lp-dept-filter');
+  if (!seasonSel && !deptSel) return;
+  var seasons = {}, depts = {};
+  (_rs01Data || []).forEach(function(row) {
+    var s = rsResolveWarehouseGroup(row, 'season');
+    if (s && s !== 'UNKNOWN') seasons[s] = true;
+    var sg = String(row.merch_sub_group || '').trim().toUpperCase();
+    if (sg.length >= 2) depts[sg.substring(0, 2)] = true;
+  });
+  if (seasonSel) {
+    var curSeason = seasonSel.value;
+    seasonSel.innerHTML = '<option value="">Season: Todas</option>' +
+      Object.keys(seasons).sort().map(function(s) {
+        return '<option value="' + escRs(s) + '"' + (s === curSeason ? ' selected' : '') + '>' + escRs(s) + '</option>';
+      }).join('');
+  }
+  if (deptSel) {
+    var curDept = deptSel.value;
+    deptSel.innerHTML = '<option value="">Depto: Todos</option>' +
+      Object.keys(depts).sort().map(function(d) {
+        return '<option value="' + escRs(d) + '"' + (d === curDept ? ' selected' : '') + '>' + escRs(d) + '</option>';
+      }).join('');
+  }
+}
+
+function rsApplyLPFilters() {
+  rsRenderLastPiecesPieChart();
+  rsRenderLastPiecesSummary(_rs01Data);
 }
 
 function rsRenderTable41(rows) {
@@ -3739,7 +3783,9 @@ function rsDownloadNegativosRayon() {
 }
 
 function rsDownloadLastPieces() {
-  var rowsData = rsGetLastPiecesRows();
+  var metricSel = document.getElementById('rs-lp-download-metric');
+  var metric = metricSel ? metricSel.value : 'warehouse';
+  var rowsData = rsGetLastPiecesRows(metric);
   if (!rowsData.length) {
     alert('No hay Last Pieces para descargar.');
     return;
@@ -3748,7 +3794,8 @@ function rsDownloadLastPieces() {
   var store = (sessionStorage.getItem('activeStore') || 'tienda').trim();
   var today = new Date();
   var dateStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-  var headers = ['País','Tienda','Fecha Reporte','Código','Nombre','Color','Product Family','Season','Merch Group','Sub Group','Warehouse Total','Detalle Tallas','Última Recepción','Ubicación'];
+  var metricLabel = metric === 'rayon' ? 'Rayón Total' : 'Warehouse Total';
+  var headers = ['País','Tienda','Fecha Reporte','Código','Nombre','Color','Product Family','Season','Merch Group','Sub Group', metricLabel,'Detalle Tallas','Última Recepción','Ubicación'];
   var rows = rowsData.map(function(r) {
     return [
       r.country, r.store_id, r.report_date, r.specialcode1, r.name, r.color,
@@ -3765,7 +3812,7 @@ function rsDownloadLastPieces() {
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
   a.href = url;
-  a.download = 'RS01_Last_Pieces_' + store + '_' + dateStr + '.csv';
+  a.download = 'RS01_Last_Pieces_' + metric.toUpperCase() + '_' + store + '_' + dateStr + '.csv';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

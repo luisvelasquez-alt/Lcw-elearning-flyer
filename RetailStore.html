@@ -222,18 +222,35 @@
       </div>
 
       <div class="bg-white rounded-[1.5rem] border border-amber-100 shadow-sm overflow-hidden">
-        <div class="px-5 py-4 flex flex-col gap-4">
+        <div class="px-5 py-4 flex flex-col gap-3">
           <div>
             <p class="text-[10px] font-black text-amber-500 uppercase tracking-[0.18em]">Reporte 1</p>
             <h3 class="text-base font-black text-zinc-900 tracking-tight mt-0.5">Listado de Last Pieces</h3>
             <p class="text-[11px] text-zinc-400 mt-1">Specialcode + Color con warehouse ≤ 3</p>
           </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <select id="rs-lp-season-filter" onchange="rsApplyLPFilters()"
+              class="h-9 rounded-xl border border-amber-100 bg-amber-50/40 px-3 text-[10px] font-black uppercase tracking-widest text-amber-700 outline-none focus:border-amber-400">
+              <option value="">Season: Todas</option>
+            </select>
+            <select id="rs-lp-dept-filter" onchange="rsApplyLPFilters()"
+              class="h-9 rounded-xl border border-amber-100 bg-amber-50/40 px-3 text-[10px] font-black uppercase tracking-widest text-amber-700 outline-none focus:border-amber-400">
+              <option value="">Depto: Todos</option>
+            </select>
+          </div>
           <div class="flex items-center justify-between gap-3">
             <span id="rs-last-pieces-count" class="text-[10px] font-black text-zinc-400 uppercase tracking-widest"></span>
-            <button onclick="rsDownloadLastPieces()"
-              class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#1565C0] transition-colors">
-              <span class="material-symbols-outlined text-sm">download</span>Excel
-            </button>
+            <div class="flex items-center gap-2">
+              <select id="rs-lp-download-metric"
+                class="h-9 rounded-xl border border-zinc-200 bg-zinc-50 px-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 outline-none focus:border-zinc-400">
+                <option value="warehouse">Warehouse</option>
+                <option value="rayon">Rayón</option>
+              </select>
+              <button onclick="rsDownloadLastPieces()"
+                class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#1565C0] transition-colors">
+                <span class="material-symbols-outlined text-sm">download</span>Excel
+              </button>
+            </div>
           </div>
         </div>
       </div>
