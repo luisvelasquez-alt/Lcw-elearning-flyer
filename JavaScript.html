@@ -2765,6 +2765,8 @@ var _rs55Data = [];
 var _rs01Data = [];
 var _rs01DataAll = [];
 var _rsUploadFile = null;
+var _RS_SHOES_SG = {BGA:1,BGAS:1,BGAT:1,BUA:1,BUAS:1,BUAT:1,CK1A:1,CK1G:1,CK1Y:1,CK4A:1,CK4G:1,CU1A:1,CU1G:1,CU1Y:1,CU4A:1,CU4G:1};
+var _RS_ACC_SG = {BGBA:1,BGD:1,BGK:1,BGO:1,BGSA:1,BUD:1,BUK:1,BUO:1,CK1O:1,CK4D:1,CK4K:1,CK4O:1,CK4Y:1,CK6A:1,CKBA:1,CKBD:1,CKBK:1,CKBO:1,CU1O:1,CU4D:1,CU4K:1,CU4O:1,CU4Y:1,CU6A:1,CUBA:1,CUBD:1,CUBK:1,CUBO:1,EVKO:1,STD:1,STBC:1,STBK:1,STG:1,STKO:1,STKR:1,STM:1,STO:1,STS:1,STSM:1,STV:1};
 var _rsUploadFiles = [];
 
 function initRetailStore() {
@@ -3585,6 +3587,12 @@ function rsResolveWarehouseGroup(row, field) {
   }
 
   if (field === 'product_family') {
+    var pfRaw = String(row && row['product_family'] || '').trim().toUpperCase();
+    if (pfRaw && pfRaw !== 'UNKNOWN') return pfRaw;
+    var sg = String(row && row.merch_sub_group || '').trim().toUpperCase();
+    if (_RS_SHOES_SG[sg]) return 'SHOES';
+    if (_RS_ACC_SG[sg]) return 'ACCESSORIES';
+    if (sg) return 'APPAREL';
     return 'UNKNOWN';
   }
 
