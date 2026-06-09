@@ -2761,7 +2761,9 @@ function escDespQ(s) {
 // ─── RETAIL STORE ─────────────────────────────────────────────────────────────
 
 var _rs41Data = [];
+var _rs41DataAll = [];
 var _rs55Data = [];
+var _rs55DataAll = [];
 var _rs01Data = [];
 var _rs01DataAll = [];
 var _rsUploadFile = null;
@@ -2860,8 +2862,10 @@ function rsLoadRetailStoreData() {
       if (content) content.classList.remove('hidden');
       _rs01DataAll = data.rs01 || [];
       _rs01Data = _rs01DataAll.slice();
-      _rs41Data = data.rs41 || [];
-      _rs55Data = data.rs55 || [];
+      _rs41DataAll = data.rs41 || [];
+      _rs41Data = _rs41DataAll.slice();
+      _rs55DataAll = data.rs55 || [];
+      _rs55Data = _rs55DataAll.slice();
       var familyFilterEl = document.getElementById('rs-family-filter');
       if (familyFilterEl) familyFilterEl.value = '';
       rsRenderKpis(data.kpis);
@@ -3086,17 +3090,47 @@ function rsPopulateFamilyFilter(rows) {
 function rsApplyFamilyFilter() {
   var select = document.getElementById('rs-family-filter');
   var family = select ? select.value : '';
+
   _rs01Data = family
     ? (_rs01DataAll || []).filter(function(row) {
         return rsResolveWarehouseGroup(row, 'product_family') === family;
       })
     : (_rs01DataAll || []).slice();
+
+  if (family) {
+    _rs41Data = (_rs41DataAll || []).filter(function(row) {
+      var sg = String(row.merch_sub_group || '').trim().toUpperCase();
+      var derived = _RS_SHOES_SG[sg] ? 'SHOES' : _RS_ACC_SG[sg] ? 'ACCESSORIES' : (sg ? 'APPAREL' : 'UNKNOWN');
+      return derived === family;
+    });
+    var sc1Family = {};
+    (_rs01DataAll || []).forEach(function(row) {
+      var sc1 = String(row.specialcode1 || '').trim().toUpperCase();
+      if (sc1) sc1Family[sc1] = rsResolveWarehouseGroup(row, 'product_family');
+    });
+    _rs55Data = (_rs55DataAll || []).filter(function(row) {
+      var sc1 = String(row.specialcode1 || '').trim().toUpperCase();
+      return sc1Family[sc1] === family;
+    });
+  } else {
+    _rs41Data = (_rs41DataAll || []).slice();
+    _rs55Data = (_rs55DataAll || []).slice();
+  }
+
+  var porReponer = _rs41Data.reduce(function(sum, r) { return sum + Number(r.warehouse_stock || 0); }, 0);
+  var movimientos = _rs55Data.reduce(function(sum, r) { return sum + Number(r.quantity || 0); }, 0);
+  var setEl = function(id, val) { var el = document.getElementById(id); if (el) el.innerText = val; };
+  setEl('rs-kpi-reponer', porReponer.toLocaleString());
+  setEl('rs-kpi-movimientos', movimientos.toLocaleString());
+
   rsRecalcKpisFromRS01(_rs01Data);
   rsPopulateMerchSeasonFilter(_rs01Data);
   rsRenderReport1ContributionCharts();
   rsRenderLastPiecesPieChart();
   rsRenderNegativosSummary(_rs01Data);
   rsRenderLastPiecesSummary(_rs01Data);
+  rsRenderTable41(_rs41Data);
+  rsRenderTable55(_rs55Data);
 }
 
 function rsRecalcKpisFromRS01(rows) {
