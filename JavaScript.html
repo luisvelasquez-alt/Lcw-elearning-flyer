@@ -3415,6 +3415,29 @@ function rsRenderRetailStoreWarehousePie(rows, field, chartId, legendId, metric)
   }
 
   var palette = ['#1565C0','#13756B','#F59E24','#6D28D9','#DC2626','#1493A3','#64748B','#0D47A1'];
+
+  var legendHtml = sorted.map(function(row, idx) {
+    var pct = total ? ((row.value / total) * 100).toFixed(1) : '0.0';
+    return '<div class="flex items-start gap-2">' +
+      '<span class="shrink-0 w-2.5 h-2.5 mt-0.5 rounded-full" style="background:' + palette[idx % palette.length] + '"></span>' +
+      '<div class="min-w-0">' +
+        '<div class="text-[10px] font-black text-zinc-700 uppercase tracking-[0.08em] leading-tight">' + escRs(row.label) + '</div>' +
+        '<div class="text-[10px] font-black text-zinc-400">' + row.value.toLocaleString() + ' · ' + pct + '%</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  if (sorted.length === 1) {
+    chart.innerHTML = '<div class="h-full flex items-center justify-center">' +
+      '<div class="h-36 w-36 rounded-full flex flex-col items-center justify-center gap-0.5" style="background:' + palette[0] + '">' +
+        '<span class="text-white font-black text-[10px] uppercase tracking-[0.12em] text-center px-2 leading-tight">' + escRs(sorted[0].label) + '</span>' +
+        '<span class="text-white/80 font-black text-xl">100%</span>' +
+      '</div>' +
+    '</div>';
+    legend.innerHTML = legendHtml;
+    return;
+  }
+
   var start = 0;
   var stops = sorted.map(function(row, idx) {
     var pct = row.value / total * 100;
@@ -3424,16 +3447,7 @@ function rsRenderRetailStoreWarehousePie(rows, field, chartId, legendId, metric)
   }).join(', ');
 
   chart.innerHTML = '<div class="h-full flex items-center justify-center"><div class="h-40 w-40 rounded-full" style="background:conic-gradient(' + stops + ');"><div class="relative left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"></div></div></div>';
-  legend.innerHTML = sorted.map(function(row, idx) {
-    var pct = total ? ((row.value / total) * 100).toFixed(1) : '0.0';
-    return '<div class="flex items-center justify-between gap-3">' +
-      '<div class="flex items-center gap-2 min-w-0">' +
-        '<span class="shrink-0 w-3 h-3 rounded-full" style="background:' + palette[idx % palette.length] + '"></span>' +
-        '<span class="text-[11px] font-black text-zinc-700 uppercase tracking-wide truncate">' + escRs(row.label) + '</span>' +
-      '</div>' +
-      '<span class="text-[11px] font-black text-zinc-400 shrink-0">' + row.value.toLocaleString() + ' · ' + pct + '%</span>' +
-    '</div>';
-  }).join('');
+  legend.innerHTML = legendHtml;
 }
 
 function rsPopulateMerchSeasonFilter(rows) {
