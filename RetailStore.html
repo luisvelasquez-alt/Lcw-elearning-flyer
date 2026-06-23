@@ -31,9 +31,17 @@
     </div>
   </div>
 
-  <div id="rs-loading" class="flex flex-col items-center justify-center py-28">
-    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1565C0]"></div>
-    <p class="mt-4 text-[10px] font-black tracking-[0.22em] text-zinc-400 uppercase">Conectando base de Datos</p>
+  <div id="rs-loading" class="flex flex-col items-center justify-center py-28 px-6">
+    <div class="w-full max-w-xs">
+      <div class="flex items-end justify-between gap-4">
+        <p id="rs-loading-label" class="text-[10px] font-black tracking-[0.22em] text-zinc-400 uppercase">Conectando base de datos</p>
+        <span id="rs-loading-percent" class="text-2xl font-black tracking-tight text-[#1565C0]">0%</span>
+      </div>
+      <div class="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-blue-100">
+        <div id="rs-loading-bar" class="h-full w-0 rounded-full bg-[#1565C0] transition-all duration-500 ease-out"></div>
+      </div>
+      <p id="rs-loading-detail" class="mt-3 text-center text-[10px] font-black uppercase tracking-[0.18em] text-zinc-300">Preparando conexión</p>
+    </div>
   </div>
 
   <div id="rs-empty" class="hidden flex flex-col items-center justify-center py-28 text-center">
@@ -83,7 +91,7 @@
           <h3 class="text-xl font-black text-zinc-900 tracking-tight mt-0.5">Adjuntar reporte de tienda</h3>
           <p id="rs-upload-status" class="text-[11px] text-zinc-400 mt-1">Se guardará en Drive con nombre estándar y se registrará para BD.</p>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-[140px_150px_minmax(200px,1fr)_auto] gap-3 lg:min-w-[720px]">
+        <div class="grid grid-cols-1 sm:grid-cols-[140px_150px_minmax(200px,1fr)_auto_auto] gap-3 lg:min-w-[860px]">
           <select id="rs-upload-report-type"
             class="h-11 rounded-xl border border-blue-100 bg-blue-50/40 px-3 text-[11px] font-black uppercase tracking-widest text-zinc-700 outline-none focus:border-[#1565C0]">
             <option value="AUTO">Auto detectar</option>
@@ -107,15 +115,52 @@
             class="h-11 rounded-xl bg-zinc-900 px-4 text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#1565C0] transition-colors inline-flex items-center justify-center gap-1.5">
             <span class="material-symbols-outlined text-sm">cloud_upload</span>Subir
           </button>
+          <button id="rs-drive-sync-submit" onclick="rsSyncRetailStoreFromDrive()" title="Procesar archivos ya cargados en Drive"
+            class="h-11 rounded-xl border border-blue-100 bg-white px-4 text-[#1565C0] text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-colors inline-flex items-center justify-center gap-1.5">
+            <span class="material-symbols-outlined text-sm">drive_folder_upload</span>Desde Drive
+          </button>
         </div>
       </div>
       <div id="rs-upload-history" class="hidden border-t border-blue-50 px-6 py-3"></div>
     </div>
 
+    <div class="bg-white rounded-[2rem] border border-blue-100 shadow-sm overflow-hidden">
+      <div class="px-6 pt-6 pb-2 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div>
+          <p class="text-[10px] font-black text-[#1565C0] uppercase tracking-[0.18em]">Informe 25 · Ventas <span id="rs-25-date-label" class="ml-2 text-[9px] text-zinc-300 tracking-widest">—</span></p>
+          <h3 class="text-xl font-black text-zinc-900 tracking-tight mt-0.5">Ventas por Top Group y Merch Sub Group</h3>
+          <p class="text-[11px] text-zinc-400 mt-1">Net Sale Quantity por grupo comercial y subgrupo</p>
+        </div>
+        <div class="relative shrink-0 w-full sm:w-44">
+          <button type="button" onclick="rsToggleSalesTopGroupDropdown(event)" class="w-full h-9 rounded-xl border border-blue-100 bg-blue-50/40 px-3 inline-flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-widest text-[#1565C0] hover:bg-blue-50 transition-colors">
+            <span id="rs-25-top-group-label" class="truncate">Top Group: Todos</span>
+            <span class="material-symbols-outlined text-[16px] leading-none">expand_more</span>
+          </button>
+          <div id="rs-25-top-group-filter" class="hidden absolute right-0 z-30 mt-2 w-full rounded-2xl border border-blue-100 bg-white p-2 shadow-xl max-h-56 overflow-auto"></div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 xl:grid-cols-2 divide-y xl:divide-y-0 xl:divide-x divide-blue-50">
+        <div class="px-6 pb-6">
+          <p class="text-[10px] font-black text-zinc-400 uppercase tracking-[0.16em] mt-2">Ventas por Top Group</p>
+          <div class="flex flex-col lg:flex-row items-center gap-0">
+            <div id="rs-25-topgroup-pie-chart" class="w-full lg:w-1/2" style="height:240px;"></div>
+            <div id="rs-25-topgroup-pie-legend" class="w-full lg:w-1/2 space-y-2"></div>
+          </div>
+        </div>
+        <div class="px-6 pb-6">
+          <p class="text-[10px] font-black text-zinc-400 uppercase tracking-[0.16em] mt-2">Ventas por Merch Sub Group</p>
+          <div class="flex flex-col lg:flex-row items-center gap-0">
+            <div id="rs-25-subgroup-pie-chart" class="w-full lg:w-1/2" style="height:240px;"></div>
+            <div id="rs-25-subgroup-pie-legend" class="w-full lg:w-1/2 space-y-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
       <div class="bg-white rounded-[2rem] border border-blue-100 shadow-sm overflow-hidden">
         <div class="px-6 pt-6 pb-2">
-          <p class="text-[10px] font-black text-[#1565C0] uppercase tracking-[0.18em]">Informe 41 · Distribución</p>
+          <p class="text-[10px] font-black text-[#1565C0] uppercase tracking-[0.18em]">Informe 41 · Distribución <span id="rs-41-date-label" class="ml-2 text-[9px] text-zinc-300 tracking-widest">—</span></p>
           <h3 class="text-xl font-black text-zinc-900 tracking-tight mt-0.5">Unidades por Reponer - Top Group</h3>
           <p class="text-[11px] text-zinc-400 mt-1">% de unidades en bodega sin rayón por grupo</p>
         </div>
@@ -127,7 +172,7 @@
 
       <div class="bg-white rounded-[2rem] border border-blue-100 shadow-sm overflow-hidden">
         <div class="px-6 pt-6 pb-2">
-          <p class="text-[10px] font-black text-[#1565C0] uppercase tracking-[0.18em]">Informe 55 · Distribución</p>
+          <p class="text-[10px] font-black text-[#1565C0] uppercase tracking-[0.18em]">Informe 55 · Distribución <span id="rs-55-date-label" class="ml-2 text-[9px] text-zinc-300 tracking-widest">—</span></p>
           <h3 class="text-xl font-black text-zinc-900 tracking-tight mt-0.5">Contribución Depo → Rayón - Top Group</h3>
           <p class="text-[11px] text-zinc-400 mt-1">% de unidades movidas de Depo a Rayón por grupo</p>
         </div>

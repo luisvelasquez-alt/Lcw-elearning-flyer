@@ -57,6 +57,21 @@ function getStoreCountry(storeName) {
   return normalizeCountryName(LCW_COUNTRY_MAP[String(storeName || '').trim().toUpperCase()] || '');
 }
 
+function getLoginStore() {
+  return String(sessionStorage.getItem('loginStore') || '').trim().toUpperCase();
+}
+
+function getEffectiveActiveStore() {
+  const role = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+  const loginStore = getLoginStore();
+  const activeStore = String(sessionStorage.getItem('activeStore') || '').trim().toUpperCase();
+  if (role === 'STORE' && loginStore) {
+    if (activeStore !== loginStore) sessionStorage.setItem('activeStore', loginStore);
+    return loginStore;
+  }
+  return activeStore;
+}
+
 function isRetailStoreAllowed(storeName) {
   const role = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
   if (role !== 'RETAIL') return true;
@@ -95,6 +110,9 @@ function loadScreen(pageName) {
   google.script.run.withSuccessHandler(function(html) {
     container.innerHTML = html;
     container.style.opacity = '1';
+    container.style.maxWidth = pageName === 'InventarioAuditoria' ? '1640px' : '';
+    container.style.paddingLeft = pageName === 'InventarioAuditoria' ? '32px' : '';
+    container.style.paddingRight = pageName === 'InventarioAuditoria' ? '32px' : '';
 
     if (pageName === 'Login') {
       header.style.display  = 'none';
@@ -119,6 +137,7 @@ function loadScreen(pageName) {
     if (pageName   === 'Despachos'    && typeof initDespachos    === 'function') initDespachos();
     if (pageName   === 'Elearnings'   && typeof initRendimiento  === 'function') initRendimiento();
     if (pageName   === 'RetailStore'  && typeof initRetailStore  === 'function') initRetailStore();
+    if (pageName   === 'InventarioAuditoria' && typeof initInventarioAuditoria === 'function') initInventarioAuditoria();
   }).getHtmlContent(targetPage);
 }
 
@@ -184,7 +203,9 @@ function handleLogin() {
     .withSuccessHandler(function(res) {
       if (res.success) {
         const role = String(res.role || '').trim().toUpperCase();
-        sessionStorage.setItem('activeStore', res.store);
+        const loginStore = String(res.store || '').trim().toUpperCase();
+        sessionStorage.setItem('loginStore', loginStore);
+        sessionStorage.setItem('activeStore', loginStore);
         sessionStorage.setItem('userRole', role);
         if (role === 'RETAIL') sessionStorage.setItem('userCountry', normalizeCountryName(res.country || res.store));
         loadScreen((role === 'ADMIN' || role === 'RETAIL') ? 'Admin' : 'Entry');
@@ -2764,20 +2785,70 @@ var _rs41Data = [];
 var _rs41DataAll = [];
 var _rs55Data = [];
 var _rs55DataAll = [];
+var _rs25Data = [];
+var _rs25DataAll = [];
 var _rs01Data = [];
 var _rs01DataAll = [];
 var _rsUploadFile = null;
+var _rsLoadingTimer = null;
+var _rsLoadingPct = 0;
 var _RS_SHOES_SG = {BGA:1,BGAS:1,BGAT:1,BUA:1,BUAS:1,BUAT:1,CK1A:1,CK1G:1,CK1Y:1,CK4A:1,CK4G:1,CU1A:1,CU1G:1,CU1Y:1,CU4A:1,CU4G:1};
 var _RS_ACC_SG = {BGBA:1,BGD:1,BGK:1,BGO:1,BGSA:1,BUD:1,BUK:1,BUO:1,CK1O:1,CK4D:1,CK4K:1,CK4O:1,CK4Y:1,CK6A:1,CKBA:1,CKBD:1,CKBK:1,CKBO:1,CU1O:1,CU4D:1,CU4K:1,CU4O:1,CU4Y:1,CU6A:1,CUBA:1,CUBD:1,CUBK:1,CUBO:1,EVKO:1,STD:1,STBC:1,STBK:1,STG:1,STKO:1,STKR:1,STM:1,STO:1,STS:1,STSM:1,STV:1};
 var _rsUploadFiles = [];
+var _RS_DIRECT_UPLOAD_BASE64_LIMIT = 1000000;
+var _RS_UPLOAD_CHUNK_SIZE = 75000;
+
+function rsSetLoadingProgress(percent, label, detail) {
+  _rsLoadingPct = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+  var percentEl = document.getElementById('rs-loading-percent');
+  var bar = document.getElementById('rs-loading-bar');
+  var labelEl = document.getElementById('rs-loading-label');
+  var detailEl = document.getElementById('rs-loading-detail');
+  if (percentEl) percentEl.innerText = _rsLoadingPct + '%';
+  if (bar) bar.style.width = _rsLoadingPct + '%';
+  if (labelEl && label) labelEl.innerText = label;
+  if (detailEl && detail) detailEl.innerText = detail;
+}
+
+function rsStartLoadingProgress(detail) {
+  rsStopLoadingProgress(false);
+  rsSetLoadingProgress(8, 'Conectando base de datos', detail || 'Preparando conexión');
+  var stages = [
+    { pct: 18, label: 'Conectando base de datos', detail: 'Autenticando tienda' },
+    { pct: 34, label: 'Leyendo inventario', detail: 'Consultando Reporte 1' },
+    { pct: 52, label: 'Leyendo movimientos', detail: 'Consultando Reportes 41 y 55' },
+    { pct: 68, label: 'Leyendo ventas', detail: 'Consultando Reporte 25' },
+    { pct: 82, label: 'Preparando dashboard', detail: 'Calculando indicadores' },
+    { pct: 92, label: 'Preparando dashboard', detail: 'Renderizando gráficos' }
+  ];
+  var index = 0;
+  _rsLoadingTimer = setInterval(function() {
+    if (index < stages.length) {
+      var stage = stages[index++];
+      rsSetLoadingProgress(Math.max(_rsLoadingPct, stage.pct), stage.label, stage.detail);
+      return;
+    }
+    if (_rsLoadingPct < 96) rsSetLoadingProgress(_rsLoadingPct + 1);
+  }, 650);
+}
+
+function rsStopLoadingProgress(complete) {
+  if (_rsLoadingTimer) {
+    clearInterval(_rsLoadingTimer);
+    _rsLoadingTimer = null;
+  }
+  if (complete) rsSetLoadingProgress(100, 'Conexión completada', 'Datos listos');
+}
 
 function initRetailStore() {
   const role  = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+  getEffectiveActiveStore();
 
   const loading = document.getElementById('rs-loading');
   const content = document.getElementById('rs-content');
   const empty   = document.getElementById('rs-empty');
   if (loading) loading.classList.remove('hidden');
+  rsStartLoadingProgress(role === 'ADMIN' ? 'Cargando tiendas' : 'Preparando conexión');
   if (content) content.classList.add('hidden');
   if (empty) empty.classList.add('hidden');
   rsPrepareUploadControls();
@@ -2836,16 +2907,18 @@ function rsSwitchAdminRetailStore(store) {
 
 function rsLoadRetailStoreData() {
   const role  = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
-  const store = (sessionStorage.getItem('activeStore') || '').trim();
+  const store = getEffectiveActiveStore();
   const loading = document.getElementById('rs-loading');
   const content = document.getElementById('rs-content');
   const empty   = document.getElementById('rs-empty');
 
   if (loading) loading.classList.remove('hidden');
+  rsStartLoadingProgress('Preparando conexión');
   if (content) content.classList.add('hidden');
   if (empty) empty.classList.add('hidden');
 
   if (!store || store.toUpperCase() === 'ADMIN' || store.toUpperCase() === 'GLOBAL') {
+    rsStopLoadingProgress(false);
     if (loading) loading.classList.add('hidden');
     rsShowEmpty('Selecciona una tienda para cargar RetailStore.');
     return;
@@ -2854,26 +2927,33 @@ function rsLoadRetailStoreData() {
   rsLoadUploadHistory();
   google.script.run
     .withSuccessHandler(function(data) {
-      if (loading) loading.classList.add('hidden');
       if (!data || data.error) {
+        rsStopLoadingProgress(false);
+        if (loading) loading.classList.add('hidden');
         rsShowEmpty(data ? data.error : 'Sin datos disponibles');
         return;
       }
-      if (content) content.classList.remove('hidden');
+      rsStopLoadingProgress(true);
       _rs01DataAll = data.rs01 || [];
       _rs01Data = _rs01DataAll.slice();
       _rs41DataAll = data.rs41 || [];
       _rs41Data = _rs41DataAll.slice();
       _rs55DataAll = data.rs55 || [];
       _rs55Data = _rs55DataAll.slice();
+      _rs25DataAll = data.rs25 || [];
+      _rs25Data = _rs25DataAll.slice();
       ['rs-family-filter','rs-season-filter','rs-dept-filter','rs-lp-season-filter','rs-lp-dept-filter'].forEach(function(id) {
         var el = document.getElementById(id); if (el) el.value = '';
       });
       rsRenderKpis(data.kpis);
+      rsRenderReportDateLabels();
       rsPopulateHeaderFilters();
       rsPopulateMerchSeasonFilter(_rs01Data);
+      rsPopulateSalesTopGroupFilter(_rs25Data);
       rsPopulateLPFilters();
       rsRenderReport1ContributionCharts();
+      rsRenderSalesTopGroupPieChart();
+      rsRenderSalesSubGroupPieChart();
       rsRenderLastPiecesPieChart();
       rsRenderTable41(data.rs41);
       rsRenderTable55(data.rs55);
@@ -2882,8 +2962,13 @@ function rsLoadRetailStoreData() {
 
       const meta = document.getElementById('rs-meta');
       if (meta) meta.innerText = 'Semana ' + (data.reportDate || '-') + ' · ' + store;
+      setTimeout(function() {
+        if (loading) loading.classList.add('hidden');
+        if (content) content.classList.remove('hidden');
+      }, 250);
     })
     .withFailureHandler(function(err) {
+      rsStopLoadingProgress(false);
       if (loading) loading.classList.add('hidden');
       rsShowEmpty('Error al cargar datos: ' + ((err && err.message) || err));
     })
@@ -2921,11 +3006,13 @@ function rsSetUploadStatus(message, isError, isLoading) {
 }
 
 function rsSetUploadBusy(isBusy) {
-  var button = document.getElementById('rs-upload-submit');
-  if (!button) return;
-  button.disabled = !!isBusy;
-  button.classList.toggle('opacity-60', !!isBusy);
-  button.classList.toggle('cursor-not-allowed', !!isBusy);
+  ['rs-upload-submit', 'rs-drive-sync-submit'].forEach(function(id) {
+    var button = document.getElementById(id);
+    if (!button) return;
+    button.disabled = !!isBusy;
+    button.classList.toggle('opacity-60', !!isBusy);
+    button.classList.toggle('cursor-not-allowed', !!isBusy);
+  });
 }
 
 function rsResetUploadInput() {
@@ -2937,9 +3024,55 @@ function rsResetUploadInput() {
   if (label) label.innerText = 'Seleccionar archivo';
 }
 
+function rsPollDatabaseSync(runIds, attempt) {
+  runIds = (runIds || []).filter(Boolean);
+  if (!runIds.length) return;
+  attempt = attempt || 0;
+  if (attempt > 90) {
+    rsSetUploadStatus('La carga sigue en proceso. Puedes actualizar en unos minutos para confirmar.', false);
+    return;
+  }
+
+  var pending = runIds.length;
+  var completed = 0;
+  var failed = [];
+
+  function finishOne(status) {
+    pending--;
+    if (status && status.status === 'completed' && status.conclusion === 'success') completed++;
+    if (status && status.status === 'completed' && status.conclusion && status.conclusion !== 'success') failed.push(status);
+    if (pending > 0) return;
+
+    if (failed.length) {
+      rsSetUploadStatus('La carga en Base de datos terminó con error. Revisa GitHub Actions.', true);
+      return;
+    }
+    if (completed === runIds.length) {
+      rsSetUploadStatus('Base de datos actualizada.', false);
+      rsResetUploadInput();
+      setTimeout(function() { initRetailStore(); }, 1200);
+      return;
+    }
+
+    rsSetUploadStatus('Cargando datos en Base de datos...', false, true);
+    setTimeout(function() { rsPollDatabaseSync(runIds, attempt + 1); }, 8000);
+  }
+
+  runIds.forEach(function(runId) {
+    google.script.run
+      .withSuccessHandler(function(status) {
+        finishOne(status || { status: 'unknown' });
+      })
+      .withFailureHandler(function() {
+        finishOne({ status: 'unknown' });
+      })
+      .getRetailStoreSyncStatus(runId);
+  });
+}
+
 function rsUploadReportFile() {
   const role  = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
-  const store = (sessionStorage.getItem('activeStore') || '').trim();
+  const store = getEffectiveActiveStore();
   var typeEl = document.getElementById('rs-upload-report-type');
   var dateEl = document.getElementById('rs-upload-report-date');
   var files = _rsUploadFiles && _rsUploadFiles.length ? _rsUploadFiles.slice() : (_rsUploadFile ? [_rsUploadFile] : []);
@@ -2965,8 +3098,14 @@ function rsUploadReportFile() {
       var lastError = results.slice().reverse().find(function(r) { return !r || !r.success; });
       rsSetUploadStatus(ok + ' archivo(s) cargados, ' + fail + ' con error. ' + ((lastError && lastError.message) || 'No se pudo subir el último archivo.'), true);
     } else {
-      rsSetUploadStatus(ok + ' archivo(s) guardados. Cargando datos en Base de datos.', false);
-      rsResetUploadInput();
+      var runIds = results.map(function(r) { return r && r.runId; }).filter(Boolean);
+      if (runIds.length) {
+        rsSetUploadStatus(ok + ' archivo(s) guardados. Cargando datos en Base de datos...', false, true);
+        rsPollDatabaseSync(runIds, 0);
+      } else {
+        rsSetUploadStatus(ok + ' archivo(s) guardados. Cargando datos en Base de datos.', false);
+        rsResetUploadInput();
+      }
     }
   }
 
@@ -2979,10 +3118,18 @@ function rsUploadReportFile() {
     rsSetUploadStatus('Cargando datos en Base de datos · ' + (index + 1) + ' de ' + files.length, false, true);
     var reader = new FileReader();
     reader.onload = function(event) {
-    var result = String(event.target.result || '');
-    var base64 = result.indexOf(',') > -1 ? result.split(',')[1] : result;
-    google.script.run
-      .withSuccessHandler(function(res) {
+      var result = String(event.target.result || '');
+      var base64 = result.indexOf(',') > -1 ? result.split(',')[1] : result;
+      var uploadPayload = {
+        store: store,
+        role: role,
+        reportType: typeEl ? typeEl.value : 'AUTO',
+        reportDate: dateEl ? dateEl.value : '',
+        fileName: file.name,
+        mimeType: file.type || 'application/octet-stream'
+      };
+
+      function finishOne(res) {
         if (!res || !res.success) {
           results.push(res || { success: false, message: 'No se pudo subir el archivo.' });
           rsSetUploadStatus(((res && res.message) || 'No se pudo subir el archivo.') + ' · ' + file.name, true);
@@ -2991,21 +3138,23 @@ function rsUploadReportFile() {
         }
         results.push(res);
         uploadNext(index + 1);
-      })
-      .withFailureHandler(function(err) {
+      }
+
+      function failOne(err) {
         results.push({ success: false, message: (err && err.message) || String(err || '') });
         rsSetUploadStatus('Error al subir ' + file.name + ': ' + ((err && err.message) || err), true);
         uploadNext(index + 1);
-      })
-      .uploadRetailStoreReport({
-        store: store,
-        role: role,
-        reportType: typeEl ? typeEl.value : 'AUTO',
-        reportDate: dateEl ? dateEl.value : '',
-        fileName: file.name,
-        mimeType: file.type || 'application/octet-stream',
-        base64Data: base64
-      });
+      }
+
+      if (base64.length <= _RS_DIRECT_UPLOAD_BASE64_LIMIT) {
+        google.script.run
+          .withSuccessHandler(finishOne)
+          .withFailureHandler(failOne)
+          .uploadRetailStoreReport(Object.assign({}, uploadPayload, { base64Data: base64 }));
+        return;
+      }
+
+      rsUploadReportInChunks(uploadPayload, base64, index, files.length, finishOne, failOne);
     };
     reader.onerror = function() {
       results.push({ success: false, message: 'No se pudo leer el archivo seleccionado.' });
@@ -3016,6 +3165,110 @@ function rsUploadReportFile() {
   }
 
   uploadNext(0);
+}
+
+function rsSyncRetailStoreFromDrive() {
+  const role  = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+  const store = getEffectiveActiveStore();
+  var typeEl = document.getElementById('rs-upload-report-type');
+  var dateEl = document.getElementById('rs-upload-report-date');
+
+  if (!store && role !== 'ADMIN') {
+    rsSetUploadStatus('No se pudo identificar la tienda activa.', true);
+    return;
+  }
+
+  rsSetUploadBusy(true);
+  rsSetUploadStatus('Sincronizando archivos existentes en Google Drive...', false, true);
+  google.script.run
+    .withSuccessHandler(function(res) {
+      rsSetUploadBusy(false);
+      rsLoadUploadHistory();
+      if (!res || !res.success) {
+        rsSetUploadStatus((res && res.message) || 'No se pudo disparar la sincronización desde Drive.', true);
+        return;
+      }
+      var label = res.reportType === 'TODOS' ? 'todos los reportes' : res.reportType;
+      rsSetUploadStatus('Workflow enviado para procesar ' + label + ' desde Drive.', false);
+    })
+    .withFailureHandler(function(err) {
+      rsSetUploadBusy(false);
+      rsSetUploadStatus('Error al sincronizar desde Drive: ' + ((err && err.message) || err), true);
+    })
+    .syncRetailStoreReportsFromDrive({
+      store: store,
+      role: role,
+      reportType: typeEl ? typeEl.value : 'AUTO',
+      reportDate: dateEl ? dateEl.value : ''
+    });
+}
+
+function rsUploadReportInChunks(uploadPayload, base64, fileIndex, totalFiles, onSuccess, onFailure) {
+  var totalChunks = Math.ceil(base64.length / _RS_UPLOAD_CHUNK_SIZE);
+  var uploadId = '';
+  var retryLimit = 2;
+  rsSetUploadStatus('Preparando carga grande · ' + (fileIndex + 1) + ' de ' + totalFiles, false, true);
+
+  function failAndCleanup(err) {
+    if (uploadId) {
+      google.script.run.cancelRetailStoreChunkedUpload(uploadId);
+    }
+    onFailure(err);
+  }
+
+  function sendChunk(chunkIndex, attempt) {
+    attempt = attempt || 0;
+    if (chunkIndex >= totalChunks) {
+      rsSetUploadStatus('Validando y guardando archivo · ' + (fileIndex + 1) + ' de ' + totalFiles, false, true);
+      google.script.run
+        .withSuccessHandler(onSuccess)
+        .withFailureHandler(failAndCleanup)
+        .finalizeRetailStoreReportUpload(Object.assign({}, uploadPayload, {
+          uploadId: uploadId,
+          totalChunks: totalChunks
+        }));
+      return;
+    }
+
+    rsSetUploadStatus('Subiendo archivo grande · parte ' + (chunkIndex + 1) + ' de ' + totalChunks, false, true);
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.success) {
+          if (attempt < retryLimit) {
+            setTimeout(function() { sendChunk(chunkIndex, attempt + 1); }, 900);
+            return;
+          }
+          failAndCleanup(res || { message: 'No se pudo subir la parte ' + (chunkIndex + 1) + ' del archivo.' });
+          return;
+        }
+        sendChunk(chunkIndex + 1, 0);
+      })
+      .withFailureHandler(function(err) {
+        if (attempt < retryLimit) {
+          setTimeout(function() { sendChunk(chunkIndex, attempt + 1); }, 900);
+          return;
+        }
+        failAndCleanup({ message: 'Falló la parte ' + (chunkIndex + 1) + ' de ' + totalChunks + ': ' + ((err && err.message) || err) });
+      })
+      .writeRetailStoreReportChunk({
+        uploadId: uploadId,
+        index: chunkIndex,
+        totalChunks: totalChunks,
+        chunk: base64.slice(chunkIndex * _RS_UPLOAD_CHUNK_SIZE, (chunkIndex + 1) * _RS_UPLOAD_CHUNK_SIZE)
+      });
+  }
+
+  google.script.run
+    .withSuccessHandler(function(session) {
+      if (!session || !session.success || !session.uploadId) {
+        onFailure(session || { message: 'No se pudo iniciar la carga por partes.' });
+        return;
+      }
+      uploadId = session.uploadId;
+      sendChunk(0, 0);
+    })
+    .withFailureHandler(onFailure)
+    .startRetailStoreChunkedUpload(uploadPayload);
 }
 
 function rsLoadUploadHistory() {
@@ -3047,6 +3300,7 @@ function rsLoadUploadHistory() {
 }
 
 function rsShowEmpty(msg) {
+  rsStopLoadingProgress(false);
   var loading = document.getElementById('rs-loading');
   var content = document.getElementById('rs-content');
   var empty   = document.getElementById('rs-empty');
@@ -3139,6 +3393,7 @@ function rsApplyGlobalFilters() {
       var derived = _RS_SHOES_SG[sg] ? 'SHOES' : _RS_ACC_SG[sg] ? 'ACCESSORIES' : (sg ? 'APPAREL' : 'UNKNOWN');
       if (derived !== family) return false;
     }
+    if (season && rsResolveWarehouseGroup(row, 'season') !== season) return false;
     if (dept) {
       var sg2 = String(row.merch_sub_group || '').trim().toUpperCase();
       if (sg2.substring(0, 2) !== dept) return false;
@@ -3147,17 +3402,33 @@ function rsApplyGlobalFilters() {
   };
   _rs41Data = (_rs41DataAll || []).filter(passRow4155);
   _rs55Data = (_rs55DataAll || []).filter(passRow4155);
+  _rs25Data = (_rs25DataAll || []).filter(function(row) {
+    if (family) {
+      var sg = String(row.merch_sub_group || '').trim().toUpperCase();
+      var derived = _RS_SHOES_SG[sg] ? 'SHOES' : _RS_ACC_SG[sg] ? 'ACCESSORIES' : (sg ? 'APPAREL' : 'UNKNOWN');
+      if (derived !== family) return false;
+    }
+    if (dept) {
+      var sg2 = String(row.merch_sub_group || '').trim().toUpperCase();
+      if (sg2.substring(0, 2) !== dept) return false;
+    }
+    return true;
+  });
 
   var porReponer = _rs41Data.reduce(function(sum, r) { return sum + Number(r.warehouse_stock || 0); }, 0);
   var movimientos = _rs55Data.reduce(function(sum, r) { return sum + Number(r.quantity || 0); }, 0);
   var setEl = function(id, val) { var el = document.getElementById(id); if (el) el.innerText = val; };
   setEl('rs-kpi-reponer', porReponer.toLocaleString());
   setEl('rs-kpi-movimientos', movimientos.toLocaleString());
+  rsRenderReportDateLabels();
 
   rsRecalcKpisFromRS01(_rs01Data);
   rsPopulateMerchSeasonFilter(_rs01Data);
+  rsPopulateSalesTopGroupFilter(_rs25Data);
   rsPopulateLPFilters();
   rsRenderReport1ContributionCharts();
+  rsRenderSalesTopGroupPieChart();
+  rsRenderSalesSubGroupPieChart();
   rsRenderLastPiecesPieChart();
   rsRenderNegativosSummary(_rs01Data);
   rsRenderLastPiecesSummary(_rs01Data);
@@ -3492,6 +3763,238 @@ function rsRenderMovementPieChart(rows) {
   }).join('');
 }
 
+function rsPopulateSalesTopGroupFilter(rows) {
+  var container = document.getElementById('rs-25-top-group-filter');
+  if (!container) return;
+
+  var previous = rsGetSelectedSalesTopGroups();
+  var previousMap = {};
+  previous.forEach(function(value) { previousMap[value] = true; });
+
+  var groups = {};
+  (rows || []).forEach(function(row) {
+    var qty = Number(row.net_sale_quantity || 0);
+    if (qty <= 0) return;
+    var group = String(row.top_group || 'N/A').trim() || 'N/A';
+    groups[group] = (groups[group] || 0) + qty;
+  });
+
+  var sorted = Object.keys(groups).sort(function(a, b) {
+    return groups[b] - groups[a] || a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  });
+  var hasPrevious = previous.some(function(value) { return sorted.indexOf(value) > -1; });
+  var pills = [{ label: 'Todos', value: 'TODOS', checked: !hasPrevious }].concat(sorted.map(function(group) {
+    return { label: group, value: group, checked: hasPrevious && !!previousMap[group] };
+  }));
+
+  container.innerHTML = pills.map(function(item) {
+    return '<label class="flex items-center gap-2 rounded-xl px-2.5 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:bg-blue-50 cursor-pointer select-none">' +
+      '<input type="checkbox" class="rs-sales-top-group-check accent-[#1565C0]" value="' + escRs(item.value) + '"' + (item.checked ? ' checked' : '') + ' onchange="rsHandleSalesTopGroupToggle(this)">' +
+      '<span>' + escRs(item.label) + '</span>' +
+    '</label>';
+  }).join('');
+  rsUpdateSalesTopGroupLabel();
+
+  if (!window._rsSalesTopGroupDropdownBound) {
+    window._rsSalesTopGroupDropdownBound = true;
+    document.addEventListener('click', function(event) {
+      var menu = document.getElementById('rs-25-top-group-filter');
+      var button = event.target.closest && event.target.closest('[onclick="rsToggleSalesTopGroupDropdown(event)"]');
+      if (menu && !menu.contains(event.target) && !button) menu.classList.add('hidden');
+    });
+  }
+}
+
+function rsToggleSalesTopGroupDropdown(event) {
+  if (event) event.stopPropagation();
+  var menu = document.getElementById('rs-25-top-group-filter');
+  if (menu) menu.classList.toggle('hidden');
+}
+
+function rsHandleSalesTopGroupToggle(input) {
+  var checks = Array.prototype.slice.call(document.querySelectorAll('.rs-sales-top-group-check'));
+  var all = checks.find(function(check) { return check.value === 'TODOS'; });
+
+  if (input && input.value === 'TODOS' && input.checked) {
+    checks.forEach(function(check) {
+      if (check.value !== 'TODOS') check.checked = false;
+    });
+  } else if (input && input.value !== 'TODOS' && input.checked && all) {
+    all.checked = false;
+  }
+
+  var selectedSpecific = checks.filter(function(check) {
+    return check.value !== 'TODOS' && check.checked;
+  });
+  if (!selectedSpecific.length && all) all.checked = true;
+
+  rsUpdateSalesTopGroupLabel();
+  rsRenderSalesTopGroupPieChart();
+  rsRenderSalesSubGroupPieChart();
+}
+
+function rsGetSelectedSalesTopGroups() {
+  return Array.prototype.slice.call(document.querySelectorAll('.rs-sales-top-group-check'))
+    .filter(function(check) { return check.checked && check.value !== 'TODOS'; })
+    .map(function(check) { return check.value; });
+}
+
+function rsUpdateSalesTopGroupLabel() {
+  var label = document.getElementById('rs-25-top-group-label');
+  if (!label) return;
+  var selected = rsGetSelectedSalesTopGroups();
+  if (!selected.length) {
+    label.innerText = 'Top Group: Todos';
+  } else if (selected.length === 1) {
+    label.innerText = 'Top Group: ' + selected[0];
+  } else {
+    label.innerText = 'Top Group: ' + selected.length;
+  }
+}
+
+function rsRenderReportDateLabels() {
+  rsSetReportDateLabel('rs-25-date-label', _rs25Data, 'report_date');
+  rsSetReportDateLabel('rs-41-date-label', _rs41Data, 'report_date');
+  rsSetReportDateLabel('rs-55-date-label', _rs55Data, 'report_date');
+}
+
+function rsSetReportDateLabel(id, rows, field) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var date = rsGetLatestDateValue(rows, field);
+  el.innerText = date ? 'Última carga: ' + date : 'Sin fecha';
+}
+
+function rsGetLatestDateValue(rows, field) {
+  var latest = '';
+  (rows || []).forEach(function(row) {
+    var raw = String(row && row[field] || '').trim();
+    if (!raw) return;
+    var date = rsNormalizeReportDate(raw);
+    if (!latest || date > latest) latest = date;
+  });
+  return latest;
+}
+
+function rsNormalizeReportDate(value) {
+  var raw = String(value || '').trim();
+  var dashed = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (dashed) return dashed[1] + '-' + dashed[2] + '-' + dashed[3];
+  var compact = raw.match(/^(\d{4})(\d{2})(\d{2})/);
+  if (compact) return compact[1] + '-' + compact[2] + '-' + compact[3];
+  return raw;
+}
+
+function rsRenderSalesTopGroupPieChart() {
+  var chart = document.getElementById('rs-25-topgroup-pie-chart');
+  var legend = document.getElementById('rs-25-topgroup-pie-legend');
+  if (!chart || !legend) return;
+
+  var groups = {};
+  (_rs25Data || []).forEach(function(row) {
+    var qty = Number(row.net_sale_quantity || 0);
+    if (qty <= 0) return;
+    var group = String(row.top_group || 'N/A').trim() || 'N/A';
+    groups[group] = (groups[group] || 0) + qty;
+  });
+
+  var sorted = Object.keys(groups)
+    .map(function(k) { return { label: k, value: groups[k] }; })
+    .filter(function(x) { return x.value > 0; })
+    .sort(function(a, b) { return b.value - a.value; })
+    .slice(0, 8);
+
+  var total = sorted.reduce(function(sum, x) { return sum + x.value; }, 0);
+  if (!total) {
+    chart.innerHTML = '<div class="h-full flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-zinc-300">Sin datos RS25</div>';
+    legend.innerHTML = '';
+    return;
+  }
+
+  var palette = ['#1565C0','#13756B','#F59E24','#6D28D9','#DC2626','#1493A3','#64748B','#0D47A1'];
+  var start = 0;
+  var stops = sorted.map(function(row, idx) {
+    var pct = row.value / total * 100;
+    var stop = palette[idx % palette.length] + ' ' + start.toFixed(2) + '% ' + (start + pct).toFixed(2) + '%';
+    start += pct;
+    return stop;
+  }).join(', ');
+
+  chart.innerHTML = '<div class="h-full flex items-center justify-center"><div class="h-40 w-40 rounded-full" style="background:conic-gradient(' + stops + ');"><div class="relative left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"></div></div></div>';
+  legend.innerHTML = sorted.map(function(row, idx) {
+    var pct = ((row.value / total) * 100).toFixed(1);
+    return '<div class="flex items-start justify-between gap-3">' +
+      '<div class="flex items-start gap-2 min-w-0">' +
+        '<span class="shrink-0 w-3 h-3 mt-0.5 rounded-full" style="background:' + palette[idx % palette.length] + '"></span>' +
+        '<span class="text-[11px] font-black text-zinc-700 uppercase tracking-wide leading-tight">' + escRs(row.label) + '</span>' +
+      '</div>' +
+      '<span class="text-[11px] font-black text-zinc-400 shrink-0">' + Math.round(row.value).toLocaleString() + ' uds · ' + pct + '%</span>' +
+    '</div>';
+  }).join('');
+}
+
+function rsRenderSalesSubGroupPieChart() {
+  var chart = document.getElementById('rs-25-subgroup-pie-chart');
+  var legend = document.getElementById('rs-25-subgroup-pie-legend');
+  if (!chart || !legend) return;
+
+  var selected = rsGetSelectedSalesTopGroups();
+  var selectedMap = {};
+  selected.forEach(function(group) { selectedMap[group] = true; });
+
+  var groups = {};
+  (_rs25Data || []).forEach(function(row) {
+    var topGroup = String(row.top_group || 'N/A').trim() || 'N/A';
+    if (selected.length && !selectedMap[topGroup]) return;
+    var qty = Number(row.net_sale_quantity || 0);
+    if (qty <= 0) return;
+    var subGroup = String(row.merch_sub_group || 'N/A').trim() || 'N/A';
+    if (!groups[subGroup]) groups[subGroup] = { value: 0, label: rsFormatSalesSubGroupLabel(row) };
+    groups[subGroup].value += qty;
+  });
+
+  var sorted = Object.keys(groups)
+    .map(function(k) { return { label: groups[k].label, value: groups[k].value }; })
+    .filter(function(x) { return x.value > 0; })
+    .sort(function(a, b) { return b.value - a.value; })
+    .slice(0, 8);
+
+  var total = sorted.reduce(function(sum, x) { return sum + x.value; }, 0);
+  if (!total) {
+    chart.innerHTML = '<div class="h-full flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-zinc-300">Sin datos RS25</div>';
+    legend.innerHTML = '';
+    return;
+  }
+
+  var palette = ['#1565C0','#13756B','#F59E24','#6D28D9','#DC2626','#1493A3','#64748B','#0D47A1'];
+  var start = 0;
+  var stops = sorted.map(function(row, idx) {
+    var pct = row.value / total * 100;
+    var stop = palette[idx % palette.length] + ' ' + start.toFixed(2) + '% ' + (start + pct).toFixed(2) + '%';
+    start += pct;
+    return stop;
+  }).join(', ');
+
+  chart.innerHTML = '<div class="h-full flex items-center justify-center"><div class="h-40 w-40 rounded-full" style="background:conic-gradient(' + stops + ');"><div class="relative left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"></div></div></div>';
+  legend.innerHTML = sorted.map(function(row, idx) {
+    var pct = ((row.value / total) * 100).toFixed(1);
+    return '<div class="flex items-start justify-between gap-3">' +
+      '<div class="flex items-start gap-2 min-w-0">' +
+        '<span class="shrink-0 w-3 h-3 mt-0.5 rounded-full" style="background:' + palette[idx % palette.length] + '"></span>' +
+        '<span class="text-[11px] font-black text-zinc-700 uppercase tracking-wide leading-tight">' + escRs(row.label) + '</span>' +
+      '</div>' +
+      '<span class="text-[11px] font-black text-zinc-400 shrink-0">' + Math.round(row.value).toLocaleString() + ' uds · ' + pct + '%</span>' +
+    '</div>';
+  }).join('');
+}
+
+function rsFormatSalesSubGroupLabel(row) {
+  var code = String(row && row.merch_sub_group || 'N/A').trim() || 'N/A';
+  var desc = String(row && row.merch_sub_group_description || '').trim();
+  if (!desc || desc.toUpperCase() === code.toUpperCase()) return code;
+  return code + ' - ' + desc;
+}
+
 function rsRenderRetailStoreWarehousePie(rows, field, chartId, legendId, metric, denominatorMap) {
   var chart = document.getElementById(chartId);
   var legend = document.getElementById(legendId);
@@ -3798,10 +4301,10 @@ function rsDownloadNegativosRayon() {
   var store = (sessionStorage.getItem('activeStore') || 'tienda').trim();
   var today = new Date();
   var dateStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-  var headers = ['País','Tienda','Fecha Reporte','Código','Nombre','Color','Talla','Product Family','Season','Merch Group','Sub Group','Warehouse','Rayón','Stock Total','Última Recepción','Ubicación'];
+  var headers = ['País','Tienda','Fecha Reporte','Código','Código de barras','Nombre','Color','Talla','Product Family','Season','Merch Group','Sub Group','Warehouse','Rayón','Stock Total','Última Recepción','Ubicación'];
   var rows = rowsData.map(function(r) {
     return [
-      r.country, r.store_id, r.report_date, r.specialcode1, r.name, r.color, r.size,
+      r.country, r.store_id, r.report_date, r.specialcode1, r.barcode, r.name, r.color, r.size,
       rsResolveWarehouseGroup(r, 'product_family'),
       rsResolveWarehouseGroup(r, 'season'), rsResolveWarehouseGroup(r, 'merch_group'), r.merch_sub_group,
       r.warehouse, r.rayon, r.total_stock, r.last_acceptance_date, r.location_quantity
@@ -3863,5 +4366,673 @@ function rsDownloadLastPieces() {
 function escRs(s) {
   return String(s == null ? '' : s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── INVENTARIO AUDITORÍA ───────────────────────────────────────────────────
+window._invAudit = {
+  rsRows: [],
+  rsMap: {},
+  icgMap: {},
+  countMap: {},
+  mode: 'count',
+  rows: [],
+  filtered: [],
+  selectedStore: ''
+};
+
+function initInventarioAuditoria() {
+  window._invAudit = { rsRows: [], rsMap: {}, icgMap: {}, countMap: {}, mode: 'count', rows: [], filtered: [], selectedStore: '' };
+  var role = (sessionStorage.getItem('userRole') || '').trim().toUpperCase();
+  var activeStore = getEffectiveActiveStore();
+  var switcher = document.getElementById('inv-audit-store-switcher');
+  var select = document.getElementById('inv-audit-store-select');
+  var showSwitcher = role === 'ADMIN' || role === 'RETAIL';
+
+  if (switcher) switcher.classList.toggle('hidden', !showSwitcher);
+  if (showSwitcher && select) {
+    loadStoresForCurrentUser(function(stores) {
+      select.innerHTML = '';
+      stores.forEach(function(store) {
+        var opt = document.createElement('option');
+        opt.value = opt.text = store;
+        if (store.toUpperCase() === activeStore) opt.selected = true;
+        select.appendChild(opt);
+      });
+      window._invAudit.selectedStore = select.value || activeStore || (stores[0] || '');
+      invAuditLoadRs(window._invAudit.selectedStore);
+    });
+    return;
+  }
+
+  window._invAudit.selectedStore = activeStore;
+  invAuditLoadRs(activeStore);
+}
+
+function invAuditSwitchStore(store) {
+  if (!isRetailStoreAllowed(store)) return alert('Esta ubicación no pertenece a tu país asignado.');
+  window._invAudit.selectedStore = store;
+  sessionStorage.setItem('activeStore', store);
+  invAuditLoadRs(store);
+}
+
+function invAuditReloadRs() {
+  invAuditLoadRs(window._invAudit.selectedStore || getEffectiveActiveStore());
+}
+
+function invAuditLoadRs(store) {
+  var loading = document.getElementById('inv-audit-loading');
+  var content = document.getElementById('inv-audit-content');
+  var meta = document.getElementById('inv-audit-meta');
+  if (loading) loading.classList.remove('hidden');
+  if (content) content.classList.add('hidden');
+  if (meta) meta.innerText = 'Cargando inventario RS...';
+
+  google.script.run
+    .withSuccessHandler(function(data) {
+      if (loading) loading.classList.add('hidden');
+      if (content) content.classList.remove('hidden');
+      if (data && data.error) {
+        if (meta) meta.innerText = 'Error RS: ' + data.error;
+        return;
+      }
+      window._invAudit.rsRows = (data && data.rows) || [];
+      window._invAudit.rsMap = invAuditBuildRsMap(window._invAudit.rsRows);
+      if (meta) {
+        meta.innerText = 'Tienda: ' + (store || '—') + ' | RS: ' + formatFullnessNum(data && data.totalUnits) +
+          ' unidades | Fecha: ' + ((data && data.reportDate) || '—');
+      }
+      invAuditRenderComparison();
+    })
+    .withFailureHandler(function(err) {
+      if (loading) loading.classList.add('hidden');
+      if (content) content.classList.remove('hidden');
+      if (meta) meta.innerText = 'Error al leer RS: ' + err.message;
+    })
+    .getInventoryAuditRsSnapshot(store);
+}
+
+function invAuditBuildRsMap(rows) {
+  var map = {};
+  (rows || []).forEach(function(row) {
+    var barcode = invAuditCleanBarcode(row.barcode);
+    if (!barcode) return;
+    if (!map[barcode]) {
+      map[barcode] = {
+        barcode: barcode,
+        qty: 0,
+        name: row.name || '',
+        specialcode: row.specialcode1 || '',
+        color: row.color || '',
+        size: row.size || '',
+        family: row.product_family || '',
+        season: row.season || '',
+        merch: row.merch_group || '',
+        merchGroup: row.merch_group || '',
+        merchSubGroup: row.merch_sub_group || '',
+        lastAcceptanceDate: row.last_acceptance_date || '',
+        warehouse: 0,
+        rayon: 0
+      };
+    }
+    map[barcode].qty += Number(row.total_stock || 0);
+    map[barcode].warehouse += Number(row.warehouse || 0);
+    map[barcode].rayon += Number(row.rayon || 0);
+  });
+  return map;
+}
+
+function invAuditHandleFile(input, type) {
+  var file = input && input.files && input.files[0];
+  if (!file) return;
+  var label = document.getElementById(type === 'icg' ? 'inv-audit-icg-file-name' : 'inv-audit-count-file-name');
+  if (label) label.innerText = file.name;
+  var reader = new FileReader();
+  reader.onload = function(event) {
+    var parsed = invAuditParseTxt(String(event.target.result || ''), type);
+    if (type === 'icg') {
+      window._invAudit.icgMap = parsed.map;
+      invAuditSetSourceStatus('inv-audit-icg-status', parsed);
+    } else {
+      window._invAudit.countMap = parsed.map;
+      window._invAudit.mode = 'count';
+      invAuditSetSourceStatus('inv-audit-count-status', parsed);
+    }
+    invAuditRenderComparison();
+  };
+  reader.readAsText(file);
+}
+
+function invAuditCompareIcgRs() {
+  var state = window._invAudit || {};
+  if (!Object.keys(state.icgMap || {}).length) {
+    return alert('Sube primero el TXT Inventario ICG para comparar contra RS.');
+  }
+  var statusFilter = document.getElementById('inv-audit-status-filter');
+  if (statusFilter) statusFilter.value = '';
+  state.mode = 'icgRs';
+  invAuditRenderComparison();
+}
+
+function invAuditSetSourceStatus(id, parsed) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.innerText = parsed.unique.toLocaleString() + ' barcodes | ' + parsed.total.toLocaleString() +
+    ' unidades | ' + parsed.badLines + ' líneas omitidas';
+}
+
+function invAuditParseTxt(text, type) {
+  var map = {};
+  var badLines = 0;
+  String(text || '').split(/\r?\n/).forEach(function(line) {
+    var raw = String(line || '').trim();
+    if (!raw) return;
+    var parts = raw.split(/\t|;|,/).map(function(part) { return part.trim(); }).filter(Boolean);
+    if (parts.length === 1) parts = raw.split(/\s+/).map(function(part) { return part.trim(); }).filter(Boolean);
+    var barcode = invAuditCleanBarcode(parts[0]);
+    if (!barcode || barcode.toUpperCase() === 'BARCODE' || barcode.toUpperCase() === 'CODBARRAS') {
+      badLines++;
+      return;
+    }
+    var qty = 1;
+    if (type === 'icg' && parts.length >= 2) {
+      qty = Number(String(parts[1]).replace(',', '.'));
+      if (isNaN(qty)) {
+        badLines++;
+        return;
+      }
+    }
+    if (type === 'count' && parts.length >= 2) {
+      var optionalQty = Number(String(parts[1]).replace(',', '.'));
+      qty = isNaN(optionalQty) ? 1 : optionalQty;
+    }
+    map[barcode] = (map[barcode] || 0) + qty;
+  });
+  var total = Object.keys(map).reduce(function(sum, barcode) { return sum + Number(map[barcode] || 0); }, 0);
+  return { map: map, total: total, unique: Object.keys(map).length, badLines: badLines };
+}
+
+function invAuditCleanBarcode(value) {
+  var raw = String(value == null ? '' : value).trim();
+  if (!raw) return '';
+  raw = raw.replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+  if (/e\+/i.test(raw)) return raw;
+  return raw.replace(/\D/g, '');
+}
+
+function invAuditRenderComparison() {
+  var state = window._invAudit || {};
+  var isIcgRsMode = state.mode === 'icgRs';
+  var keys = {};
+  if (isIcgRsMode) {
+    Object.keys(state.rsMap || {}).forEach(function(k) { keys[k] = true; });
+    Object.keys(state.icgMap || {}).forEach(function(k) { keys[k] = true; });
+  } else {
+    Object.keys(state.countMap || {}).forEach(function(k) { keys[k] = true; });
+  }
+
+  var rows = Object.keys(keys).map(function(barcode) {
+    var rs = state.rsMap[barcode] || {};
+    var rsQty = Number(rs.qty || 0);
+    var icgQty = Number(state.icgMap[barcode] || 0);
+    var countQty = Number(state.countMap[barcode] || 0);
+    var hasCount = Object.prototype.hasOwnProperty.call(state.countMap || {}, barcode);
+    var hasIcg = Object.prototype.hasOwnProperty.call(state.icgMap || {}, barcode);
+    var hasRs = Object.prototype.hasOwnProperty.call(state.rsMap || {}, barcode);
+    var status = isIcgRsMode
+      ? invAuditGetIcgRsStatus(rsQty, icgQty, hasRs, hasIcg)
+      : invAuditGetStatus(rsQty, icgQty, countQty, hasRs, hasIcg, hasCount);
+    return {
+      barcode: barcode,
+      name: rs.name || '',
+      detail: [rs.specialcode, rs.color, rs.size].filter(Boolean).join(' · '),
+      merchGroup: rs.merchGroup || '',
+      merchSubGroup: rs.merchSubGroup || '',
+      lastAcceptanceDate: rs.lastAcceptanceDate || '',
+      warehouse: Number(rs.warehouse || 0),
+      rayon: Number(rs.rayon || 0),
+      rs: rsQty,
+      icg: icgQty,
+      count: isIcgRsMode ? null : countQty,
+      diffRs: isIcgRsMode ? icgQty - rsQty : (hasCount || hasRs ? countQty - rsQty : 0),
+      diffIcg: isIcgRsMode ? null : (hasCount || hasIcg ? countQty - icgQty : 0),
+      status: status
+    };
+  }).filter(function(row) {
+    return !isIcgRsMode || row.status.key !== 'OK';
+  });
+
+  rows.sort(function(a, b) {
+    var aDiff = a.status.key === 'OK' ? 1 : 0;
+    var bDiff = b.status.key === 'OK' ? 1 : 0;
+    if (aDiff !== bDiff) return aDiff - bDiff;
+    return Math.abs(b.diffRs) - Math.abs(a.diffRs);
+  });
+
+  state.rows = rows;
+  invAuditApplyFilters();
+  invAuditRenderKpis(rows);
+}
+
+function invAuditGetIcgRsStatus(rsQty, icgQty, hasRs, hasIcg) {
+  if (hasIcg && icgQty < 0) return { key: 'ICG_NEGATIVO', label: 'ICG negativo', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
+  if (!hasIcg && hasRs) return { key: 'NO_ICG', label: 'No está en ICG', cls: 'bg-zinc-50 text-zinc-700 border-zinc-200' };
+  if (!hasRs && hasIcg) return { key: 'NO_RS', label: 'No está en RS', cls: 'bg-blue-50 text-blue-700 border-blue-200' };
+  if (icgQty > rsQty) return { key: 'ICG_MAYOR', label: 'ICG mayor', cls: 'bg-orange-50 text-orange-700 border-orange-200' };
+  if (icgQty < rsQty) return { key: 'RS_MAYOR', label: 'RS mayor', cls: 'bg-rose-50 text-rose-700 border-rose-200' };
+  return { key: 'OK', label: 'OK', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+}
+
+function invAuditGetStatus(rsQty, icgQty, countQty, hasRs, hasIcg, hasCount) {
+  if (hasIcg && icgQty < 0) return { key: 'ICG_NEGATIVO', label: 'ICG negativo', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
+  if (!hasIcg && (hasRs || hasCount)) return { key: 'NO_ICG', label: 'No está en ICG', cls: 'bg-zinc-50 text-zinc-700 border-zinc-200' };
+  if (!hasRs && (hasIcg || hasCount)) return { key: 'NO_RS', label: 'No está en RS', cls: 'bg-blue-50 text-blue-700 border-blue-200' };
+  if (countQty < icgQty || countQty < rsQty) return { key: 'FALTA_FISICO', label: 'Falta físico', cls: 'bg-rose-50 text-rose-700 border-rose-200' };
+  if (countQty > icgQty || countQty > rsQty) return { key: 'SOBRA_FISICO', label: 'Sobra físico', cls: 'bg-orange-50 text-orange-700 border-orange-200' };
+  return { key: 'OK', label: 'OK', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+}
+
+function invAuditApplyFilters() {
+  var state = window._invAudit || {};
+  var status = document.getElementById('inv-audit-status-filter')?.value || '';
+  var search = (document.getElementById('inv-audit-search')?.value || '').trim().toLowerCase();
+  state.filtered = (state.rows || []).filter(function(row) {
+    var statusMatch = !status ||
+      row.status.key === status ||
+      (status === 'DIFERENCIA' && row.status.key !== 'OK');
+    if (!statusMatch) return false;
+    if (!search) return true;
+    return [row.barcode, row.name, row.detail, row.merchGroup, row.merchSubGroup, row.lastAcceptanceDate, row.status.label].some(function(value) {
+      return String(value || '').toLowerCase().indexOf(search) > -1;
+    });
+  });
+  invAuditRenderTable();
+}
+
+function invAuditRenderKpis(rows) {
+  var rsTotal = Object.keys(window._invAudit.rsMap || {}).reduce(function(sum, key) { return sum + Number(window._invAudit.rsMap[key].qty || 0); }, 0);
+  var warehouseTotal = Object.keys(window._invAudit.rsMap || {}).reduce(function(sum, key) { return sum + Number(window._invAudit.rsMap[key].warehouse || 0); }, 0);
+  var rayonTotal = Object.keys(window._invAudit.rsMap || {}).reduce(function(sum, key) { return sum + Number(window._invAudit.rsMap[key].rayon || 0); }, 0);
+  var icgTotal = Object.keys(window._invAudit.icgMap || {}).reduce(function(sum, key) { return sum + Number(window._invAudit.icgMap[key] || 0); }, 0);
+  var countTotal = Object.keys(window._invAudit.countMap || {}).reduce(function(sum, key) { return sum + Number(window._invAudit.countMap[key] || 0); }, 0);
+  var diffs = (rows || []).filter(function(row) { return row.status.key !== 'OK'; }).length;
+  setText('inv-audit-kpi-rs', formatFullnessNum(rsTotal));
+  setText('inv-audit-kpi-warehouse', formatFullnessNum(warehouseTotal));
+  setText('inv-audit-kpi-rayon', formatFullnessNum(rayonTotal));
+  setText('inv-audit-kpi-icg', formatFullnessNum(icgTotal));
+  setText('inv-audit-kpi-count', formatFullnessNum(countTotal));
+  setText('inv-audit-kpi-diff', formatFullnessNum(diffs));
+  setText('inv-audit-kpi-barcodes', formatFullnessNum((rows || []).length));
+}
+
+function invAuditRenderTable() {
+  var tbody = document.getElementById('inv-audit-tbody');
+  var note = document.getElementById('inv-audit-table-note');
+  var title = document.getElementById('inv-audit-result-title');
+  if (!tbody) return;
+  var isIcgRsMode = (window._invAudit || {}).mode === 'icgRs';
+  var colspan = isIcgRsMode ? 11 : 13;
+  if (title) title.innerText = isIcgRsMode ? 'RS vs ICG' : 'RS vs ICG vs Conteo';
+  invAuditEnsureTableHeaders(tbody);
+  var rows = (window._invAudit.filtered || []).slice(0, 500);
+  if (!rows.length) {
+    var emptyMessage = isIcgRsMode
+      ? 'No hay diferencias ICG-RS para mostrar.'
+      : 'Sube el TXT de conteo físico para ver los barcodes escaneados.';
+    tbody.innerHTML = '<tr><td colspan="' + colspan + '" class="px-4 py-8 text-center text-[11px] font-bold text-zinc-400">' + emptyMessage + '</td></tr>';
+  } else {
+    tbody.innerHTML = rows.map(function(row) {
+      return '<tr class="hover:bg-blue-50/30 transition-colors">' +
+        '<td class="px-4 py-3 font-mono text-[11px] font-black text-[#1565C0] whitespace-nowrap">' + safeText(row.barcode) + '</td>' +
+        '<td class="px-4 py-3 min-w-[260px]"><p class="text-[11px] font-bold text-zinc-800">' + safeText(row.name || 'Sin descripción RS') + '</p><p class="text-[10px] text-zinc-400 mt-0.5">' + safeText(row.detail) + '</p></td>' +
+        '<td class="px-4 py-3 text-[11px] font-bold text-zinc-600 whitespace-nowrap">' + safeText(row.merchGroup) + '</td>' +
+        '<td class="px-4 py-3 text-[11px] font-bold text-zinc-600 whitespace-nowrap">' + safeText(row.merchSubGroup) + '</td>' +
+        '<td class="px-4 py-3 text-[11px] font-bold text-zinc-500 whitespace-nowrap">' + safeText(invAuditFormatDate(row.lastAcceptanceDate)) + '</td>' +
+        '<td class="px-4 py-3 text-right text-[11px] font-bold text-zinc-700">' + formatFullnessNum(row.warehouse) + '</td>' +
+        '<td class="px-4 py-3 text-right text-[11px] font-bold text-zinc-700">' + formatFullnessNum(row.rayon) + '</td>' +
+        '<td class="px-4 py-3 text-right text-[11px] font-bold text-zinc-700">' + formatFullnessNum(row.rs) + '</td>' +
+        '<td class="px-4 py-3 text-right text-[11px] font-bold text-zinc-700">' + formatFullnessNum(row.icg) + '</td>' +
+        (isIcgRsMode ? '' : '<td class="px-4 py-3 text-right text-[11px] font-bold text-zinc-900">' + formatFullnessNum(row.count) + '</td>') +
+        '<td class="px-4 py-3 text-right text-[11px] font-black ' + (row.diffRs === 0 ? 'text-zinc-400' : row.diffRs < 0 ? 'text-rose-600' : 'text-orange-600') + '">' + invAuditSigned(row.diffRs) + '</td>' +
+        (isIcgRsMode ? '' : '<td class="px-4 py-3 text-right text-[11px] font-black ' + (row.diffIcg === 0 ? 'text-zinc-400' : row.diffIcg < 0 ? 'text-rose-600' : 'text-orange-600') + '">' + invAuditSigned(row.diffIcg) + '</td>') +
+        '<td class="px-4 py-3"><span class="inline-block px-2 py-0.5 rounded-full border text-[9px] font-black uppercase whitespace-nowrap ' + row.status.cls + '">' + safeText(row.status.label) + '</span></td>' +
+      '</tr>';
+    }).join('');
+  }
+  if (note) {
+    note.innerText = (window._invAudit.filtered || []).length.toLocaleString() +
+      ' registros filtrados. Mostrando máximo 500 en pantalla.';
+  }
+}
+
+function invAuditEnsureTableHeaders(tbody) {
+  var table = tbody.closest('table');
+  var headerRow = table && table.querySelector('thead tr');
+  if (!headerRow) return;
+  var isIcgRsMode = (window._invAudit || {}).mode === 'icgRs';
+  var headers = [
+    { label: 'Barcode', cls: 'px-4 py-3' },
+    { label: 'Producto', cls: 'px-4 py-3' },
+    { label: 'Merch Group', cls: 'px-4 py-3' },
+    { label: 'Merch Sub Group', cls: 'px-4 py-3' },
+    { label: 'Last Acceptance', cls: 'px-4 py-3' },
+    { label: 'Warehouse', cls: 'px-4 py-3 text-right' },
+    { label: 'Rayón', cls: 'px-4 py-3 text-right' },
+    { label: 'RS', cls: 'px-4 py-3 text-right' },
+    { label: 'ICG', cls: 'px-4 py-3 text-right' }
+  ];
+  if (isIcgRsMode) {
+    headers.push({ label: 'ICG - RS', cls: 'px-4 py-3 text-right' });
+  } else {
+    headers.push({ label: 'Conteo', cls: 'px-4 py-3 text-right' });
+    headers.push({ label: 'Conteo - RS', cls: 'px-4 py-3 text-right' });
+    headers.push({ label: 'Conteo - ICG', cls: 'px-4 py-3 text-right' });
+  }
+  headers.push({ label: 'Estado', cls: 'px-4 py-3' });
+  headerRow.innerHTML = headers.map(function(header) {
+    return '<th class="' + header.cls + '">' + header.label + '</th>';
+  }).join('');
+}
+
+function invAuditSigned(value) {
+  var n = Number(value || 0);
+  if (n > 0) return '+' + formatFullnessNum(n);
+  return formatFullnessNum(n);
+}
+
+function invAuditFormatDate(value) {
+  var raw = String(value || '').trim();
+  if (!raw) return '';
+  var match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return match[1] + '-' + match[2] + '-' + match[3];
+  return raw;
+}
+
+function invAuditExportExcel() {
+  var rows = window._invAudit.filtered || [];
+  if (!rows.length) return alert('No hay resultados para exportar.');
+  var exportData = invAuditBuildExportData(rows);
+  var blob = invAuditCreateXlsxBlob(exportData);
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = exportData.fileBase + '.xlsx';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function invAuditExportCsv() {
+  invAuditExportExcel();
+}
+
+function invAuditBuildExportData(rows) {
+  var isIcgRsMode = (window._invAudit || {}).mode === 'icgRs';
+  var headers = isIcgRsMode
+    ? ['Barcode','Producto','Detalle','Merch Group','Merch Sub Group','Last Acceptance Date','Warehouse','Rayon','RS','ICG','ICG menos RS','Estado']
+    : ['Barcode','Producto','Detalle','Merch Group','Merch Sub Group','Last Acceptance Date','Warehouse','Rayon','RS','ICG','Conteo','Conteo menos RS','Conteo menos ICG','Estado'];
+  var values = rows.map(function(row) {
+    var values = [row.barcode, row.name, row.detail, row.merchGroup, row.merchSubGroup, invAuditFormatDate(row.lastAcceptanceDate), row.warehouse, row.rayon, row.rs, row.icg];
+    if (!isIcgRsMode) values.push(row.count);
+    values.push(row.diffRs);
+    if (!isIcgRsMode) values.push(row.diffIcg);
+    values.push(row.status.label);
+    return values;
+  });
+  var store = window._invAudit.selectedStore || 'tienda';
+  var date = new Date().toISOString().slice(0, 10);
+  return {
+    headers: headers,
+    rows: values,
+    store: store,
+    mode: isIcgRsMode ? 'ICG-RS' : 'CONTEO',
+    title: isIcgRsMode ? 'Comparativo ICG-RS' : 'Auditoría de Inventario',
+    fileBase: (isIcgRsMode ? 'Comparativo_ICG_RS_' : 'Auditoria_Inventario_') + store + '_' + date,
+    meta: document.getElementById('inv-audit-meta')?.innerText || '',
+    filter: document.getElementById('inv-audit-status-filter')?.selectedOptions?.[0]?.text || 'Estado: Todos',
+    search: document.getElementById('inv-audit-search')?.value || '',
+    kpis: {
+      rs: document.getElementById('inv-audit-kpi-rs')?.innerText || '0',
+      warehouse: document.getElementById('inv-audit-kpi-warehouse')?.innerText || '0',
+      rayon: document.getElementById('inv-audit-kpi-rayon')?.innerText || '0',
+      icg: document.getElementById('inv-audit-kpi-icg')?.innerText || '0',
+      count: document.getElementById('inv-audit-kpi-count')?.innerText || '0',
+      diff: document.getElementById('inv-audit-kpi-diff')?.innerText || '0',
+      barcodes: document.getElementById('inv-audit-kpi-barcodes')?.innerText || '0'
+    }
+  };
+}
+
+function invAuditCreateXlsxBlob(exportData) {
+  var rows = [exportData.headers].concat(exportData.rows);
+  var sheetXml = invAuditBuildWorksheetXml(rows);
+  var files = [
+    {
+      path: '[Content_Types].xml',
+      text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+        '</Types>'
+    },
+    {
+      path: '_rels/.rels',
+      text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>'
+    },
+    {
+      path: 'xl/workbook.xml',
+      text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="Resultado" sheetId="1" r:id="rId1"/></sheets>' +
+        '</workbook>'
+    },
+    {
+      path: 'xl/_rels/workbook.xml.rels',
+      text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+        '</Relationships>'
+    },
+    {
+      path: 'xl/styles.xml',
+      text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1565C0"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+        '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>'
+    },
+    { path: 'xl/worksheets/sheet1.xml', text: sheetXml }
+  ];
+  return new Blob([invAuditZipFiles(files)], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+}
+
+function invAuditBuildWorksheetXml(rows) {
+  var colCount = rows[0] ? rows[0].length : 0;
+  var widths = [];
+  for (var i = 0; i < colCount; i++) {
+    widths.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + invAuditColumnWidth(i) + '" customWidth="1"/>');
+  }
+  var sheetRows = rows.map(function(values, rowIndex) {
+    var rowNumber = rowIndex + 1;
+    var cells = values.map(function(value, colIndex) {
+      return invAuditXlsxCell(value, rowNumber, colIndex, rowIndex === 0);
+    }).join('');
+    return '<row r="' + rowNumber + '">' + cells + '</row>';
+  }).join('');
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+    '<cols>' + widths.join('') + '</cols>' +
+    '<sheetData>' + sheetRows + '</sheetData>' +
+    '<autoFilter ref="A1:' + invAuditColumnName(Math.max(colCount, 1) - 1) + Math.max(rows.length, 1) + '"/>' +
+    '</worksheet>';
+}
+
+function invAuditXlsxCell(value, rowNumber, colIndex, isHeader) {
+  var ref = invAuditColumnName(colIndex) + rowNumber;
+  var style = isHeader ? ' s="1"' : '';
+  if (!isHeader && invAuditIsNumericExportColumn(colIndex) && value !== '' && value != null && isFinite(Number(value))) {
+    return '<c r="' + ref + '"' + style + '><v>' + Number(value) + '</v></c>';
+  }
+  return '<c r="' + ref + '" t="inlineStr"' + style + '><is><t xml:space="preserve">' +
+    invAuditXmlEscape(value == null ? '' : String(value)) +
+    '</t></is></c>';
+}
+
+function invAuditIsNumericExportColumn(colIndex) {
+  var isIcgRsMode = (window._invAudit || {}).mode === 'icgRs';
+  if (isIcgRsMode) return colIndex >= 6 && colIndex <= 10;
+  return colIndex >= 6 && colIndex <= 12;
+}
+
+function invAuditColumnWidth(colIndex) {
+  var widths = [18, 34, 28, 18, 20, 18, 13, 11, 10, 10, 14, 16, 16, 18];
+  return widths[colIndex] || 14;
+}
+
+function invAuditColumnName(index) {
+  var name = '';
+  var n = index + 1;
+  while (n > 0) {
+    var mod = (n - 1) % 26;
+    name = String.fromCharCode(65 + mod) + name;
+    n = Math.floor((n - mod) / 26);
+  }
+  return name;
+}
+
+function invAuditXmlEscape(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+}
+
+function invAuditZipFiles(files) {
+  var encoder = new TextEncoder();
+  var localParts = [];
+  var centralParts = [];
+  var offset = 0;
+  var now = new Date();
+  var dosTime = ((now.getHours() & 31) << 11) | ((now.getMinutes() & 63) << 5) | ((now.getSeconds() / 2) & 31);
+  var dosDate = (((now.getFullYear() - 1980) & 127) << 9) | (((now.getMonth() + 1) & 15) << 5) | (now.getDate() & 31);
+
+  files.forEach(function(file) {
+    var nameBytes = encoder.encode(file.path);
+    var data = encoder.encode(file.text);
+    var crc = invAuditCrc32(data);
+    var localHeader = new Uint8Array(30 + nameBytes.length);
+    var localView = new DataView(localHeader.buffer);
+    localView.setUint32(0, 0x04034b50, true);
+    localView.setUint16(4, 20, true);
+    localView.setUint16(6, 0x0800, true);
+    localView.setUint16(8, 0, true);
+    localView.setUint16(10, dosTime, true);
+    localView.setUint16(12, dosDate, true);
+    localView.setUint32(14, crc, true);
+    localView.setUint32(18, data.length, true);
+    localView.setUint32(22, data.length, true);
+    localView.setUint16(26, nameBytes.length, true);
+    localHeader.set(nameBytes, 30);
+    localParts.push(localHeader, data);
+
+    var centralHeader = new Uint8Array(46 + nameBytes.length);
+    var centralView = new DataView(centralHeader.buffer);
+    centralView.setUint32(0, 0x02014b50, true);
+    centralView.setUint16(4, 20, true);
+    centralView.setUint16(6, 20, true);
+    centralView.setUint16(8, 0x0800, true);
+    centralView.setUint16(10, 0, true);
+    centralView.setUint16(12, dosTime, true);
+    centralView.setUint16(14, dosDate, true);
+    centralView.setUint32(16, crc, true);
+    centralView.setUint32(20, data.length, true);
+    centralView.setUint32(24, data.length, true);
+    centralView.setUint16(28, nameBytes.length, true);
+    centralView.setUint32(42, offset, true);
+    centralHeader.set(nameBytes, 46);
+    centralParts.push(centralHeader);
+
+    offset += localHeader.length + data.length;
+  });
+
+  var centralOffset = offset;
+  var centralSize = centralParts.reduce(function(total, part) { return total + part.length; }, 0);
+  var endRecord = new Uint8Array(22);
+  var endView = new DataView(endRecord.buffer);
+  endView.setUint32(0, 0x06054b50, true);
+  endView.setUint16(8, files.length, true);
+  endView.setUint16(10, files.length, true);
+  endView.setUint32(12, centralSize, true);
+  endView.setUint32(16, centralOffset, true);
+
+  return new Blob(localParts.concat(centralParts, [endRecord]));
+}
+
+function invAuditCrc32(bytes) {
+  var table = invAuditCrc32.table;
+  if (!table) {
+    table = invAuditCrc32.table = [];
+    for (var i = 0; i < 256; i++) {
+      var c = i;
+      for (var j = 0; j < 8; j++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+      table[i] = c >>> 0;
+    }
+  }
+  var crc = 0xffffffff;
+  for (var k = 0; k < bytes.length; k++) crc = table[(crc ^ bytes[k]) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function invAuditSendEmail() {
+  var rows = window._invAudit.filtered || [];
+  if (!rows.length) return alert('No hay resultados para enviar.');
+  var btn = document.getElementById('inv-audit-email-btn');
+  var originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add('opacity-60', 'cursor-wait');
+    btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span>Enviando';
+  }
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('opacity-60', 'cursor-wait');
+        btn.innerHTML = originalHtml;
+      }
+      if (!res || !res.success) return alert('No se pudo enviar el correo: ' + ((res && res.message) || 'Error desconocido'));
+      alert('Correo enviado a ' + (res.recipients || []).join(', '));
+    })
+    .withFailureHandler(function(err) {
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('opacity-60', 'cursor-wait');
+        btn.innerHTML = originalHtml;
+      }
+      alert('No se pudo enviar el correo: ' + err.message);
+    })
+    .sendInventoryAuditEmail(invAuditBuildExportData(rows));
+}
+
+function invAuditCsvCell(value) {
+  var s = value == null ? '' : String(value).trim();
+  return s.indexOf(',') > -1 || s.indexOf('"') > -1 || s.indexOf('\n') > -1 ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 </script>

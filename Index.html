@@ -44,10 +44,34 @@
           <button onclick="loadScreen('Budget')"      class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">Budget</button>
           <button onclick="loadScreen('Analysis')"    class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">Análisis</button>
           <button onclick="loadScreen('Comparativo')" class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">Comparativa</button>
-          <button onclick="loadScreen('Rendimiento')"  id="nav-rendimiento"   class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">Rendimiento</button>
-          <button onclick="loadScreen('Despachos')"  id="nav-despachos"   class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">Despachos</button>
-          <button onclick="loadScreen('Elearnings')"   id="nav-elearnings"    class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">E-learnings</button>
-          <button onclick="loadScreen('RetailStore')" id="nav-retailstore"   class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest">Retail Store</button>
+          <div class="relative group">
+            <button class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest flex items-center gap-1">
+              Más
+              <span class="material-symbols-outlined text-sm">expand_more</span>
+            </button>
+            <div class="absolute right-0 mt-1 w-56 bg-white border border-blue-100 shadow-2xl rounded-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] overflow-hidden">
+              <button onclick="loadScreen('Rendimiento')" id="nav-rendimiento" class="w-full flex items-center gap-3 px-4 py-3 text-left text-zinc-600 hover:bg-blue-50 transition-colors">
+                <span class="material-symbols-outlined text-[#1565C0] text-lg">monitoring</span>
+                <span class="text-[10px] font-black uppercase tracking-wide">Rendimiento</span>
+              </button>
+              <button onclick="loadScreen('Despachos')" id="nav-despachos" class="w-full flex items-center gap-3 border-t border-zinc-100 px-4 py-3 text-left text-zinc-600 hover:bg-blue-50 transition-colors">
+                <span class="material-symbols-outlined text-[#1565C0] text-lg">inventory_2</span>
+                <span class="text-[10px] font-black uppercase tracking-wide">Despachos</span>
+              </button>
+              <button onclick="loadScreen('Elearnings')" id="nav-elearnings" class="w-full flex items-center gap-3 border-t border-zinc-100 px-4 py-3 text-left text-zinc-600 hover:bg-blue-50 transition-colors">
+                <span class="material-symbols-outlined text-[#1565C0] text-lg">school</span>
+                <span class="text-[10px] font-black uppercase tracking-wide">E-learnings</span>
+              </button>
+              <button onclick="loadScreen('RetailStore')" id="nav-retailstore" class="w-full flex items-center gap-3 border-t border-zinc-100 px-4 py-3 text-left text-zinc-600 hover:bg-blue-50 transition-colors">
+                <span class="material-symbols-outlined text-[#1565C0] text-lg">store</span>
+                <span class="text-[10px] font-black uppercase tracking-wide">Retail Store</span>
+              </button>
+              <button onclick="loadScreen('InventarioAuditoria')" id="nav-inventario-auditoria" class="w-full flex items-center gap-3 border-t border-zinc-100 px-4 py-3 text-left text-zinc-600 hover:bg-blue-50 transition-colors">
+                <span class="material-symbols-outlined text-[#1565C0] text-lg">fact_check</span>
+                <span class="text-[10px] font-black uppercase tracking-wide">Auditoría</span>
+              </button>
+            </div>
+          </div>
           <button onclick="openManual()"              class="text-white/70 hover:text-white transition-colors font-black uppercase text-[11px] tracking-widest flex items-center gap-1 cursor-pointer">
             <span class="material-symbols-outlined text-sm">menu_book</span>Manual
           </button>
@@ -96,6 +120,10 @@
       <button onclick="loadScreen('RetailStore')" id="mobile-nav-retailstore" class="flex w-full items-center gap-3 border-t border-zinc-100 px-4 py-3 text-left text-zinc-600 active:bg-blue-50">
         <span class="material-symbols-outlined text-[#1565C0]">store</span>
         <span class="text-[10px] font-black uppercase tracking-wide">Retail Store</span>
+      </button>
+      <button onclick="loadScreen('InventarioAuditoria')" id="mobile-nav-inventario-auditoria" class="flex w-full items-center gap-3 border-t border-zinc-100 px-4 py-3 text-left text-zinc-600 active:bg-blue-50">
+        <span class="material-symbols-outlined text-[#1565C0]">fact_check</span>
+        <span class="text-[10px] font-black uppercase tracking-wide">Auditoría</span>
       </button>
     </div>
     <button onclick="loadScreen('Entry')"       class="flex flex-1 min-w-0 flex-col items-center justify-center text-zinc-500 py-2 active:scale-90 transition-transform">

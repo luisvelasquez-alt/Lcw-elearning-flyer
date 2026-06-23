@@ -84,6 +84,10 @@
         <a href="#budget"      class="nav-pill">Budget</a>
         <a href="#comparativo" class="nav-pill">Comparativa</a>
         <a href="#admin"       class="nav-pill">Admin</a>
+        <a href="#fullness"    class="nav-pill">Fullness</a>
+        <a href="#despachos"   class="nav-pill">Despachos</a>
+        <a href="#retailstore" class="nav-pill">RetailStore</a>
+        <a href="#inventario"  class="nav-pill">Inventario</a>
         <a href="#metricas"    class="nav-pill">Métricas</a>
         <a href="#elearnings"  class="nav-pill">E-learnings</a>
         <a href="#movil"       class="nav-pill">Móvil</a>
@@ -194,24 +198,52 @@
             <p class="font-black text-xs text-ink uppercase tracking-tight">Panel Admin Regional</p>
           </div>
         </a>
+        <a href="#fullness" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
+          <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">monitoring</span>
+          <div>
+            <p class="label text-zinc-400 mb-0.5">07</p>
+            <p class="font-black text-xs text-ink uppercase tracking-tight">Rayon Fullness</p>
+          </div>
+        </a>
+        <a href="#despachos" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
+          <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">local_shipping</span>
+          <div>
+            <p class="label text-zinc-400 mb-0.5">08</p>
+            <p class="font-black text-xs text-ink uppercase tracking-tight">Despachos</p>
+          </div>
+        </a>
+        <a href="#retailstore" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
+          <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">storefront</span>
+          <div>
+            <p class="label text-zinc-400 mb-0.5">09</p>
+            <p class="font-black text-xs text-ink uppercase tracking-tight">Retail Store</p>
+          </div>
+        </a>
+        <a href="#inventario" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
+          <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">fact_check</span>
+          <div>
+            <p class="label text-zinc-400 mb-0.5">10</p>
+            <p class="font-black text-xs text-ink uppercase tracking-tight">Inventario Auditoría</p>
+          </div>
+        </a>
         <a href="#metricas" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
           <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">query_stats</span>
           <div>
-            <p class="label text-zinc-400 mb-0.5">07</p>
+            <p class="label text-zinc-400 mb-0.5">11</p>
             <p class="font-black text-xs text-ink uppercase tracking-tight">Guía de KPIs</p>
           </div>
         </a>
         <a href="#elearnings" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
           <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">school</span>
           <div>
-            <p class="label text-zinc-400 mb-0.5">08</p>
+            <p class="label text-zinc-400 mb-0.5">12</p>
             <p class="font-black text-xs text-ink uppercase tracking-tight">E-learnings</p>
           </div>
         </a>
         <a href="#movil" class="group flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-6 py-5 rounded-2xl hover:border-primary/40 hover:bg-white hover:shadow-md transition-all">
           <span class="material-symbols-outlined text-zinc-300 group-hover:text-primary transition-colors">smartphone</span>
           <div>
-            <p class="label text-zinc-400 mb-0.5">09</p>
+            <p class="label text-zinc-400 mb-0.5">13</p>
             <p class="font-black text-xs text-ink uppercase tracking-tight">Acceso Móvil</p>
           </div>
         </a>
@@ -645,11 +677,97 @@
       <p>Cada semana el sistema genera y envía automáticamente un <strong>Weekly Operations Report</strong> a los correos configurados con rol Admin. El reporte incluye el ranking completo ordenado por Unidades, el mix departamental global (BG/BU/CK/CU/ST) y el estado de Budget MTD por tienda.</p>
     </section>
 
+    <!-- 07 FULLNESS -->
+    <section id="fullness" class="py-16 border-b border-zinc-100 prose">
+      <div class="section-divider">
+        <span class="h-px w-6 bg-primary"></span>
+        <span class="label text-primary">07 · Rayon Fullness</span>
+      </div>
+      <h2>Rendimiento / Rayon Occupancy</h2>
+      <p>La pantalla de Rendimiento en LCW se enfoca en disponibilidad visual de tienda. Resume Rayon Fullness, Actual Fullness, Rayon Stock y Store Cover para entender si el piso tiene suficiente producto exhibido y si la tienda está protegida para la demanda esperada.</p>
+
+      <h3>Lectura de KPIs</h3>
+      <ul>
+        <li><strong>Rayon Fullness</strong> — ocupación esperada o referencia objetivo del rayón.</li>
+        <li><strong>Actual Fullness</strong> — ocupación real reportada para la tienda.</li>
+        <li><strong>Rayon Stock</strong> — unidades disponibles en rayón.</li>
+        <li><strong>Store Cover</strong> — cobertura estimada de inventario según ventas recientes.</li>
+      </ul>
+
+      <h3>Detalle por Merch Age Group</h3>
+      <p>La tabla inferior muestra Merch, Age Group, Status, Rayon Occ, Actual Occ, Rayon Stock, Warehouse, Last 7 Days y Cover. Úsala para ubicar si la caída de disponibilidad está concentrada en un grupo de edad o en una familia comercial específica.</p>
+
+      <div class="warn">
+        <p><strong>Regla operativa:</strong> si el fullness está por debajo de 95%, cruza la tienda con Despachos para validar qué invoices vienen en camino, cuáles están pendientes de recepción y si hay mercancía en bodega que no se ha llevado a piso.</p>
+      </div>
+    </section>
+
+    <!-- 08 DESPACHOS -->
+    <section id="despachos" class="py-16 border-b border-zinc-100 prose">
+      <div class="section-divider">
+        <span class="h-px w-6 bg-primary"></span>
+        <span class="label text-primary">08 · Despachos</span>
+      </div>
+      <h2>Recepción de Mercancía</h2>
+      <p>El módulo Despachos permite dar seguimiento a la mercancía LCW por país, tienda y número de despacho. Los usuarios Admin pueden cambiar país y tienda; los usuarios Store ven su tienda asignada.</p>
+
+      <h3>Vista estándar</h3>
+      <p>Selecciona país, tienda y despacho para consultar el resumen por Invoice ID. La tabla muestra cantidades, status, fecha de llegada y permite confirmar recepción cuando corresponde.</p>
+
+      <h3>Dashboard Admin</h3>
+      <p>En vista Admin se habilitan filtros por despacho, país, tienda y status, además de tarjetas KPI, gráficos de Merch Group y Season, y una lista consolidada de invoices. Esta lectura ayuda a priorizar qué mercancía debe recibirse o revisarse primero.</p>
+
+      <h3>Desglose por departamento</h3>
+      <p>El desglose inferior permite ver la composición del despacho por departamento. Si una tienda tiene bajo fullness en un grupo específico, usa esta tabla para confirmar si la reposición esperada contiene esa categoría.</p>
+    </section>
+
+    <!-- 09 RETAIL STORE -->
+    <section id="retailstore" class="py-16 border-b border-zinc-100 prose">
+      <div class="section-divider">
+        <span class="h-px w-6 bg-primary"></span>
+        <span class="label text-primary">09 · Retail Store</span>
+      </div>
+      <h2>Inventario Operativo Retail Store</h2>
+      <p>Retail Store centraliza reportes de tienda y warehouse para seguimiento de reposición, movimientos, negativos, last pieces, recepción y venta por top group. En Admin se puede cambiar de tienda desde el selector superior.</p>
+
+      <h3>Subir y procesar reportes</h3>
+      <p>La tarjeta "Adjuntar reporte de tienda" permite seleccionar tipo de reporte, fecha y archivos Excel/CSV. El botón Subir guarda los archivos en Drive con nombre estándar; el botón Desde Drive procesa archivos ya cargados en la carpeta correspondiente.</p>
+
+      <h3>KPIs y gráficos</h3>
+      <p>Los KPIs superiores muestran unidades en bodega, referencias a reponer, movimientos, negativos, last pieces y recepción. Los gráficos muestran venta por Top Group/Merch Sub Group, unidades a reponer, contribución Depo a Rayón, familia de producto, season, merch group y last pieces.</p>
+
+      <h3>Descargas operativas</h3>
+      <p>Los listados de Negativos en Rayón y Last Pieces incluyen botones de descarga a Excel. Úsalos para armar planes de corrección con el equipo de piso y bodega.</p>
+    </section>
+
+    <!-- 10 INVENTARIO AUDITORÍA -->
+    <section id="inventario" class="py-16 border-b border-zinc-100 prose">
+      <div class="section-divider">
+        <span class="h-px w-6 bg-primary"></span>
+        <span class="label text-primary">10 · Inventario Auditoría</span>
+      </div>
+      <h2>Verificación de Inventario</h2>
+      <p>Inventario Auditoría compara el snapshot de Retail Store contra inventario ICG y/o un conteo físico por barcode. Está pensado para detectar diferencias entre RS, warehouse, rayón, ICG y conteo real.</p>
+
+      <h3>Formatos de carga</h3>
+      <ul>
+        <li><strong>ICG</strong> — archivo TXT/CSV/TSV con barcode + unidades.</li>
+        <li><strong>Conteo físico</strong> — un barcode por pieza escaneada; cada aparición suma una unidad.</li>
+      </ul>
+
+      <h3>Resultados</h3>
+      <p>Después de comparar, el sistema muestra KPIs de RS, Warehouse, Rayón, ICG, Conteo, Diferencia y Barcodes. La tabla se puede filtrar por status, buscar por barcode o producto, descargar a Excel y enviar por correo.</p>
+
+      <div class="tip">
+        <p><strong>Uso recomendado:</strong> corre esta verificación cuando el módulo Fullness o Retail Store muestre brechas importantes, negativos persistentes o diferencias de disponibilidad que no se explican por despachos pendientes.</p>
+      </div>
+    </section>
+
     <!-- 07 MÉTRICAS -->
     <section id="metricas" class="py-16 border-b border-zinc-100 prose">
       <div class="section-divider">
         <span class="h-px w-6 bg-primary"></span>
-        <span class="label text-primary">07 · Guía de KPIs</span>
+        <span class="label text-primary">11 · Guía de KPIs</span>
       </div>
       <h2>KPIs Operacionales</h2>
 
@@ -758,7 +876,7 @@
     <section id="elearnings" class="py-16 border-b border-zinc-100 prose">
       <div class="section-divider">
         <span class="h-px w-6 bg-primary"></span>
-        <span class="label text-primary">08 · E-learnings</span>
+        <span class="label text-primary">12 · E-learnings</span>
       </div>
       <h2>Seguimiento de Capacitación</h2>
       <p>El panel de E-learnings centraliza el control de las actividades de formación pendientes en todas las tiendas de la región. Conectado a la plataforma Enocta, actualiza automáticamente cada lunes con el reporte semanal de cursos, eliminando la necesidad de revisar archivos Excel de forma manual.</p>
@@ -887,7 +1005,7 @@
     <section id="movil" class="py-16 prose">
       <div class="section-divider">
         <span class="h-px w-6 bg-primary"></span>
-        <span class="label text-primary">09 · Acceso Móvil</span>
+        <span class="label text-primary">13 · Acceso Móvil</span>
       </div>
       <h2>Instalar como App</h2>
       <p>LC Waikiki Retail Pro está optimizado para uso móvil y puede instalarse como una app nativa en tu dispositivo sin necesidad de descarga desde ningún store. Agrégala a la pantalla de inicio para acceso inmediato sin abrir el browser cada vez.</p>

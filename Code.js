@@ -308,13 +308,14 @@ function getRegionalData(weekNumber, country) {
       const sheetLY = ss.getSheetByName("LY");
       if (sheetLY) {
         const dataLY = sheetLY.getDataRange().getValues();
+        const storeNamesRowLY = dataLY[1] || [];
         for (let j = 2; j < dataLY.length; j++) {
           const rowWeekLY = parseInt(String(dataLY[j][2]).replace(/\D/g, ''), 10);
           const rowDayLY  = parseInt(dataLY[j][3], 10);
           const rowDescLY = String(dataLY[j][2] || "").toUpperCase();
           if (rowWeekLY === targetWeek && rowDayLY <= cutoffDayNum && !rowDescLY.includes("TOTAL")) {
             for (let col = 5; col < dataLY[j].length; col += 6) {
-              const storeName = storeNamesRow[col];
+              const storeName = storeNamesRowLY[col];
               if (storeName && String(storeName).trim() !== "") {
                 const cleanStore = String(storeName).trim();
                 if (!storeSummaryLY[cleanStore]) {
@@ -447,6 +448,7 @@ function getWeeklySummary(storeName, weekNumber) {
 
     const sheetLY = ss.getSheetByName("LY");
     const dataLY = sheetLY.getDataRange().getValues();
+    const storeRowLY = dataLY[1] || [];
 
     let mapDS = null;
     let mapLY = null;
@@ -497,7 +499,7 @@ function getWeeklySummary(storeName, weekNumber) {
       if (rowWeekLY === targetWeek && rowDayLY <= cutoffDayNum && !rowDescLY.includes("TOTAL")) {
         if (isRegionalView) {
           for (let col = 5; col < dataLY[j].length; col += 6) {
-            if (storeRow[col]) {
+            if (storeRowLY[col]) {
               ly.v  += Number(dataLY[j][col])     || 0;
               ly.u  += Number(dataLY[j][col + 1]) || 0;
               ly.t  += Number(dataLY[j][col + 2]) || 0;
@@ -2555,18 +2557,29 @@ function getRetailStoreData(storeName, role) {
     var storeFilter = String(storeName || '').trim();
     var rowCap = storeFilter ? 100000 : (isAdmin ? 500000 : 100000);
 
-    var params41 = 'rayon_stock=eq.0&warehouse_stock=gt.0&select=country,store_id,report_date,specialcode1,name,color,size,top_group,merch_sub_group,line,rayon_stock,warehouse_stock,reserved_stock,total_stock,location_quantity&order=warehouse_stock.desc';
+    var params41 = 'rayon_stock=eq.0&warehouse_stock=gt.0&select=country,store_id,report_date,specialcode1,season,name,color,size,top_group,merch_sub_group,line,rayon_stock,warehouse_stock,reserved_stock,total_stock,location_quantity&order=warehouse_stock.desc';
     if (storeFilter) params41 += '&store_id=eq.' + encodeURIComponent(storeFilter);
     var rs41 = supabaseGetAll_('rs_41_inventario', params41, 1000, rowCap);
 
-    var params55 = 'select=store_id,from_warehouse,to_warehouse,name,color,size,top_group,merch_sub_group,quantity,scanning_date,scanning_type&order=scanning_date.desc';
+    var params55 = 'select=store_id,report_date,from_warehouse,to_warehouse,specialcode1,season,name,color,size,top_group,merch_sub_group,quantity,scanning_date,scanning_type&order=scanning_date.desc';
     if (storeFilter) params55 += '&store_id=eq.' + encodeURIComponent(storeFilter);
     var rs55 = supabaseGetAll_('rs_55_movimientos', params55, 1000, rowCap);
     var rs55DepoRayon = rs55.filter(isRetailStoreDepoToRayon_);
 
-    var paramsStock = 'select=country,store_id,report_date,specialcode1,name,color,size,warehouse,rayon,total_stock,season,merch_group,merch_sub_group,product_family,merch_sub_group_name_eng,merch_brand_age_group_name_eng,last_acceptance_date,location_quantity';
+    var rs25 = [];
+    try {
+      var params25 = 'select=country,store_id,report_date,top_group,merch_sub_group,net_sale_quantity,basket_quantity,sales_transaction_quantity&order=net_sale_quantity.desc';
+      if (storeFilter) params25 += '&store_id=eq.' + encodeURIComponent(storeFilter);
+      rs25 = supabaseGetAll_('rs_25_canasta', params25, 1000, rowCap);
+    } catch (rs25Err) {
+      Logger.log('getRetailStoreData rs_25_canasta warning: ' + rs25Err.message);
+      rs25 = [];
+    }
+
+    var paramsStock = 'select=country,store_id,report_date,specialcode1,barcode,name,color,size,warehouse,rayon,total_stock,season,merch_group,merch_sub_group,product_family,merch_sub_group_name_eng,merch_brand_age_group_name_eng,last_acceptance_date,location_quantity';
     if (storeFilter) paramsStock += '&store_id=eq.' + encodeURIComponent(storeFilter);
     var stockRows = supabaseGetAll_('rs_01_master_family', paramsStock, 1000, rowCap);
+    rsEnrichSalesSubGroupDescriptions_(rs25, stockRows);
 
     var enBodega = 0;
 
@@ -2614,6 +2627,7 @@ function getRetailStoreData(storeName, role) {
 
     var reportDate = '';
     if (stockRows.length > 0 && stockRows[0].report_date) reportDate = stockRows[0].report_date;
+    else if (rs25.length > 0 && rs25[0].report_date) reportDate = rs25[0].report_date;
     else if (rs41.length > 0 && rs41[0].report_date) reportDate = rs41[0].report_date;
     else if (rs55.length > 0 && rs55[0].report_date) reportDate = rs55[0].report_date;
 
@@ -2621,6 +2635,7 @@ function getRetailStoreData(storeName, role) {
       error: null,
       reportDate: reportDate,
       rs01: stockRows,
+      rs25: rs25,
       rs41: rs41,
       rs55: rs55DepoRayon,
       kpis: {
@@ -2642,6 +2657,181 @@ function getRetailStoreData(storeName, role) {
   }
 }
 
+function rsEnrichSalesSubGroupDescriptions_(salesRows, stockRows) {
+  var descMap = {};
+  (stockRows || []).forEach(function(row) {
+    var code = String(row.merch_sub_group || '').trim().toUpperCase();
+    var desc = String(row.merch_sub_group_name_eng || row.merch_sub_group_name || '').trim();
+    if (code && desc && !descMap[code]) descMap[code] = desc;
+  });
+
+  try {
+    var mappingRows = supabaseGetAll_('retail_product_family_mapping', 'select=merch_sub_group,merch_sub_group_name_eng,merch_sub_group_name', 1000, 10000);
+    (mappingRows || []).forEach(function(row) {
+      var code = String(row.merch_sub_group || '').trim().toUpperCase();
+      var desc = String(row.merch_sub_group_name_eng || row.merch_sub_group_name || '').trim();
+      if (code && desc && !descMap[code]) descMap[code] = desc;
+    });
+  } catch (mappingErr) {
+    Logger.log('rsEnrichSalesSubGroupDescriptions_ mapping warning: ' + mappingErr.message);
+  }
+
+  (salesRows || []).forEach(function(row) {
+    var code = String(row.merch_sub_group || '').trim().toUpperCase();
+    row.merch_sub_group_description = descMap[code] || '';
+  });
+}
+
+function getInventoryAuditRsSnapshot(storeName) {
+  try {
+    var storeFilter = String(storeName || '').trim();
+    if (!storeFilter) throw new Error('Selecciona una tienda para consultar RS.');
+
+    var baseFilter = '&store_id=eq.' + encodeURIComponent(storeFilter) + '&order=barcode.asc';
+    var params = 'select=country,store_id,report_date,specialcode1,barcode,name,color,size,total_stock,warehouse,rayon,season,merch_group,merch_sub_group,product_family,last_acceptance_date' + baseFilter;
+    var rows = supabaseGetAll_('rs_01_master_family', params, 1000, 150000);
+    var totalUnits = rows.reduce(function(sum, row) {
+      return sum + Number(row.total_stock || 0);
+    }, 0);
+    var reportDate = '';
+    if (rows.length > 0 && rows[0].report_date) reportDate = rows[0].report_date;
+
+    return {
+      error: null,
+      store: storeFilter,
+      reportDate: reportDate,
+      totalRows: rows.length,
+      totalUnits: totalUnits,
+      rows: rows
+    };
+  } catch (e) {
+    Logger.log('getInventoryAuditRsSnapshot error: ' + e.message);
+    return { error: e.message, rows: [] };
+  }
+}
+
+function sendInventoryAuditEmail(payload) {
+  var recipients = getInventoryAuditRecipients_((payload && payload.store) || '');
+  var spreadsheetId = '';
+  try {
+    if (!payload || !Array.isArray(payload.headers) || !Array.isArray(payload.rows)) {
+      throw new Error('No hay datos válidos para enviar.');
+    }
+    if (!payload.rows.length) throw new Error('No hay resultados para enviar.');
+
+    var store = String(payload.store || 'Tienda').trim();
+    var mode = String(payload.mode || 'CONTEO').trim();
+    var title = String(payload.title || 'Auditoría de Inventario').trim();
+    var fileBase = sanitizeFilename_(payload.fileBase || ('Auditoria_Inventario_' + store));
+    var generatedAt = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+
+    var ss = SpreadsheetApp.create(fileBase);
+    spreadsheetId = ss.getId();
+    var sheet = ss.getSheets()[0];
+    sheet.setName('Resultado');
+
+    var headers = payload.headers.map(function(value) { return String(value == null ? '' : value); });
+    var rows = payload.rows.map(function(row) {
+      return headers.map(function(_, index) {
+        var value = Array.isArray(row) ? row[index] : '';
+        return value == null ? '' : value;
+      });
+    });
+
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.getRange(1, 1, 1, headers.length)
+      .setBackground('#1565C0')
+      .setFontColor('#ffffff')
+      .setFontWeight('bold');
+    if (rows.length) {
+      sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+    }
+    sheet.setFrozenRows(1);
+    sheet.autoResizeColumns(1, headers.length);
+
+    var summary = ss.insertSheet('Resumen');
+    var kpis = payload.kpis || {};
+    var summaryRows = [
+      ['Reporte', title],
+      ['Tienda', store],
+      ['Modo', mode],
+      ['Generado', generatedAt],
+      ['Filtro', payload.filter || 'Estado: Todos'],
+      ['Búsqueda', payload.search || ''],
+      ['Meta', payload.meta || ''],
+      ['RS Total', kpis.rs || '0'],
+      ['Warehouse', kpis.warehouse || '0'],
+      ['Rayón', kpis.rayon || '0'],
+      ['ICG', kpis.icg || '0'],
+      ['Conteo', kpis.count || '0'],
+      ['Diferencias', kpis.diff || '0'],
+      ['Barcodes en resultado', kpis.barcodes || String(rows.length)]
+    ];
+    summary.getRange(1, 1, summaryRows.length, 2).setValues(summaryRows);
+    summary.getRange(1, 1, summaryRows.length, 1).setFontWeight('bold');
+    summary.autoResizeColumns(1, 2);
+    ss.setActiveSheet(sheet);
+    SpreadsheetApp.flush();
+
+    var exportUrl = 'https://docs.google.com/spreadsheets/d/' + spreadsheetId + '/export?format=xlsx';
+    var xlsxBlob = UrlFetchApp.fetch(exportUrl, {
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+      muteHttpExceptions: true
+    }).getBlob().setName(fileBase + '.xlsx');
+
+    var htmlBody =
+      '<div style="font-family:Arial,sans-serif;color:#111827">' +
+      '<h2 style="margin:0 0 8px">LC Waikiki | ' + escapeHtml_(title) + '</h2>' +
+      '<p style="margin:0 0 12px;color:#6b7280">Tienda: <strong>' + escapeHtml_(store) + '</strong> | Modo: <strong>' + escapeHtml_(mode) + '</strong></p>' +
+      '<p style="margin:0 0 12px">Adjunto encontrarás el Excel con los resultados filtrados de la pantalla de Auditoría.</p>' +
+      '<table style="border-collapse:collapse;font-size:13px">' +
+      '<tr><td style="padding:4px 10px 4px 0;color:#6b7280">Registros</td><td style="padding:4px 0;font-weight:700">' + rows.length.toLocaleString() + '</td></tr>' +
+      '<tr><td style="padding:4px 10px 4px 0;color:#6b7280">Filtro</td><td style="padding:4px 0;font-weight:700">' + escapeHtml_(payload.filter || 'Estado: Todos') + '</td></tr>' +
+      '<tr><td style="padding:4px 10px 4px 0;color:#6b7280">Generado</td><td style="padding:4px 0;font-weight:700">' + escapeHtml_(generatedAt) + '</td></tr>' +
+      '</table>' +
+      '<p style="margin-top:18px;font-size:11px;color:#9ca3af">Prueba enviada desde LC Waikiki Retail Pro. Esta acción no modifica inventarios.</p>' +
+      '</div>';
+
+    MailApp.sendEmail({
+      to: recipients.join(','),
+      subject: 'LC Waikiki | ' + store + ' | ' + title,
+      htmlBody: htmlBody,
+      attachments: [xlsxBlob],
+      name: 'LC Waikiki Retail Pro'
+    });
+
+    return { success: true, recipients: recipients };
+  } catch (e) {
+    Logger.log('sendInventoryAuditEmail error: ' + e.message);
+    return { success: false, message: e.message, recipients: recipients };
+  } finally {
+    if (spreadsheetId) {
+      try {
+        DriveApp.getFileById(spreadsheetId).setTrashed(true);
+      } catch (trashErr) {
+        Logger.log('No se pudo eliminar temporal auditoría: ' + trashErr.message);
+      }
+    }
+  }
+}
+
+function getInventoryAuditRecipients_(storeName) {
+  return ['luisvelasquez@grupodavid.com', 'elisortega@grupodavid.com'];
+}
+
+function sanitizeFilename_(value) {
+  return String(value || 'archivo').replace(/[\\/:*?"<>|#%{}~&]/g, '_').replace(/\s+/g, '_').slice(0, 120);
+}
+
+function escapeHtml_(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function normalizeRetailReportType_(value) {
   var raw = String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (raw === 'AUTO' || raw === 'AUTODETECTAR' || raw === 'AUTODETECT') return 'AUTO';
@@ -2655,6 +2845,35 @@ function normalizeRetailReportType_(value) {
   return 'OTRO';
 }
 
+function getRetailReportTypeFromFileName_(fileName) {
+  var raw = String(fileName || '').toUpperCase();
+  var rsMatch = raw.match(/(?:^|[^A-Z0-9])RS[_\-\s]?0?([0-9]{1,2})(?:[^0-9]|$)/);
+  if (rsMatch) return normalizeRetailReportType_(rsMatch[1]);
+  var reportMatch = raw.match(/(?:^|[^A-Z0-9])(?:REPORTE|REPORT)(?:\s*(?:NRO|NO|NUMERO|NUMBER|#))?[\s._#-]*0?([0-9]{1,2})(?:[^0-9]|$)/);
+  return reportMatch ? normalizeRetailReportType_(reportMatch[1]) : '';
+}
+
+function getRetailReportExpectedColumnCounts_() {
+  return {
+    RS01: 31,
+    RS06: 16,
+    RS25: 17,
+    RS35: 24,
+    RS41: 16,
+    RS44: 20,
+    RS55: 19,
+    RS63: 13
+  };
+}
+
+function retailReportExpectedCountIsUnique_(reportType, expectedCounts) {
+  var target = expectedCounts && expectedCounts[reportType];
+  if (!target) return false;
+  return Object.keys(expectedCounts).filter(function(type) {
+    return expectedCounts[type] === target;
+  }).length === 1;
+}
+
 function normalizeRetailHeaderKey_(value) {
   return String(value || '')
     .replace(/[ıİ]/g, 'i')
@@ -2666,13 +2885,68 @@ function normalizeRetailHeaderKey_(value) {
 
 function getRetailReportHeaderSpecs_() {
   return {
-    RS01: ['storecode', 'specialcode1', 'merchgroup', 'merchsubgroup', 'season', 'color', 'warehouse', 'rayon', 'totalstock'],
-    RS06: ['brand', 'specialcode', 'totalsale', 'totalreturn', 'netsale', 'cumulativesales', 'stokmiktar', 'lastreceivingdate'],
-    RS25: ['warehouse', 'description', 'topgroup', 'merchsubgroup', 'netsaleamount', 'netsalequantity', 'basketquantity'],
-    RS41: ['specialcode1', 'locationquantity', 'rayonstock', 'warehousestock', 'reservedstock', 'totalstock', 'isitoutliersize'],
-    RS44: ['reyonstok', 'depostok', 'lastsales', 'firstexpedition'],
-    RS55: ['fromwarehouse', 'towarehouse', 'specialcode1', 'scanningtype', 'scanningdate', 'quantity'],
-    RS63: ['specialcode1', 'stockquantity', 'reservedquantity', 'warehousequantity', 'rayonquantity', 'assignmentdate', 'labeltype']
+    RS01: [
+      ['storecode', 'store'],
+      ['specialcode1', 'specialcode'],
+      ['merchgroup'],
+      ['merchsubgroup'],
+      ['season'],
+      ['color', 'colorcode'],
+      ['warehouse', 'warehousestock'],
+      ['rayon', 'rayonstock'],
+      ['totalstock']
+    ],
+    RS06: [
+      ['brand'],
+      ['specialcode', 'specialcode1'],
+      ['totalsale'],
+      ['totalreturn'],
+      ['netsale'],
+      ['cumulativesales'],
+      ['stokmiktar', 'stockquantity'],
+      ['lastreceivingdate', 'lastacceptance']
+    ],
+    RS25: [
+      ['warehouse'],
+      ['description'],
+      ['topgroup'],
+      ['merchsubgroup'],
+      ['netsaleamount'],
+      ['netsalequantity'],
+      ['basketquantity']
+    ],
+    RS41: [
+      ['specialcode1', 'specialcode'],
+      ['locationquantity', 'locationqty', 'location'],
+      ['rayonstock'],
+      ['warehousestock'],
+      ['reservedstock'],
+      ['totalstock'],
+      ['isitoutliersize']
+    ],
+    RS44: [
+      ['reyonstok', 'rayonstock'],
+      ['depostok', 'warehousestock'],
+      ['lastsales'],
+      ['firstexpedition']
+    ],
+    RS55: [
+      ['fromwarehouse', 'fromwarehousecode'],
+      ['towarehouse', 'towarehousecode'],
+      ['specialcode1', 'specialcode'],
+      ['scanningtype'],
+      ['scanningdate', 'date'],
+      ['quantity', 'qty']
+    ],
+    RS63: [
+      ['specialcode1', 'specialcode'],
+      ['stockquantity'],
+      ['reservedquantity'],
+      ['warehousequantity'],
+      ['rayonquantity'],
+      ['assignmentdate'],
+      ['labeltype']
+    ]
   };
 }
 
@@ -2685,12 +2959,14 @@ function getRetailUploadMimeType_(fileName, mimeType) {
   return type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 }
 
-function extractRetailUploadHeaders_(bytes, mimeType, fileName) {
+function extractRetailUploadHeaderRows_(bytes, mimeType, fileName) {
   var lower = String(fileName || '').toLowerCase();
   if (lower.endsWith('.csv') || String(mimeType || '').toLowerCase().indexOf('csv') > -1) {
     var csvText = Utilities.newBlob(bytes, mimeType || 'text/csv', fileName || 'reporte.csv').getDataAsString();
     var csvRows = Utilities.parseCsv(csvText);
-    return csvRows && csvRows.length ? csvRows[0].map(function(v) { return String(v || '').trim(); }) : [];
+    return (csvRows || []).slice(0, 25).map(function(row) {
+      return row.map(function(v) { return String(v || '').trim(); }).filter(function(v) { return v !== ''; });
+    });
   }
 
   var blob = Utilities.newBlob(bytes, getRetailUploadMimeType_(fileName, mimeType), fileName || 'reporte.xlsx');
@@ -2702,15 +2978,34 @@ function extractRetailUploadHeaders_(bytes, mimeType, fileName) {
     var ss = SpreadsheetApp.openById(tempFile.id);
     var sheet = ss.getSheets()[0];
     var lastCol = Math.min(sheet.getLastColumn(), 80);
+    var lastRow = Math.min(sheet.getLastRow(), 25);
     if (!lastCol) return [];
-    return sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function(v) {
-      return String(v || '').trim();
-    }).filter(function(v) {
-      return v !== '';
+    if (!lastRow) return [];
+    return sheet.getRange(1, 1, lastRow, lastCol).getValues().map(function(row) {
+      return row.map(function(v) {
+        return String(v || '').trim();
+      }).filter(function(v) {
+        return v !== '';
+      });
     });
   } finally {
     try { Drive.Files.trash(tempFile.id); } catch (err) {}
   }
+}
+
+function extractRetailUploadHeaders_(bytes, mimeType, fileName) {
+  var rows = extractRetailUploadHeaderRows_(bytes, mimeType, fileName);
+  return rows && rows.length ? rows[0] : [];
+}
+
+function retailHeaderHasAlias_(normalized, aliases) {
+  return aliases.some(function(alias) {
+    var key = normalizeRetailHeaderKey_(alias);
+    if (normalized[key]) return true;
+    return Object.keys(normalized).some(function(headerKey) {
+      return headerKey === key || headerKey.indexOf(key) > -1 || key.indexOf(headerKey) > -1;
+    });
+  });
 }
 
 function detectRetailReportTypeFromHeaders_(headers) {
@@ -2724,7 +3019,11 @@ function detectRetailReportTypeFromHeaders_(headers) {
   var best = { type: '', matches: 0, missing: [] };
   Object.keys(specs).forEach(function(type) {
     var required = specs[type];
-    var missing = required.filter(function(key) { return !normalized[normalizeRetailHeaderKey_(key)]; });
+    var missing = required.filter(function(aliases) {
+      return !retailHeaderHasAlias_(normalized, aliases);
+    }).map(function(aliases) {
+      return aliases[0];
+    });
     var matches = required.length - missing.length;
     if (matches > best.matches) best = { type: type, matches: matches, missing: missing };
   });
@@ -2737,23 +3036,91 @@ function detectRetailReportTypeFromHeaders_(headers) {
 
 function validateRetailUploadReportType_(bytes, mimeType, fileName, requestedReportType) {
   var requested = normalizeRetailReportType_(requestedReportType);
+  var fileNameReportType = getRetailReportTypeFromFileName_(fileName);
+  var expectedCounts = getRetailReportExpectedColumnCounts_();
   if (requested === 'OTRO') {
     return { reportType: 'OTRO', detectedReportType: '', headers: [] };
   }
+  if (fileNameReportType && requested !== 'AUTO' && requested !== fileNameReportType) {
+    throw new Error('El nombre del archivo parece ' + fileNameReportType + ', pero seleccionaste ' + requested + '. Corrige el tipo o usa Auto detectar.');
+  }
+  if (
+    fileNameReportType &&
+    (requested === 'AUTO' || requested === fileNameReportType) &&
+    bytes &&
+    bytes.length > 1500000
+  ) {
+    return {
+      reportType: fileNameReportType,
+      detectedReportType: fileNameReportType,
+      headers: []
+    };
+  }
 
-  var headers = extractRetailUploadHeaders_(bytes, mimeType, fileName);
-  var detected = detectRetailReportTypeFromHeaders_(headers);
-  if (!detected.type || detected.confidence !== 'HIGH') {
-    throw new Error('No pude reconocer el tipo de reporte por los encabezados. Revisa que el archivo sea un RS válido.');
+  var headerRows = extractRetailUploadHeaderRows_(bytes, mimeType, fileName);
+  var bestLow = { type: '', missing: [], headers: [] };
+  for (var i = 0; i < headerRows.length; i++) {
+    var headers = headerRows[i] || [];
+    if (!headers.length) continue;
+    var detected = detectRetailReportTypeFromHeaders_(headers);
+    if (detected.type && detected.confidence === 'HIGH') {
+      if (requested !== 'AUTO' && requested !== detected.type) {
+        throw new Error('El archivo parece ' + detected.type + ', pero seleccionaste ' + requested + '. Corrige el tipo o usa Auto detectar.');
+      }
+      return {
+        reportType: detected.type,
+        detectedReportType: detected.type,
+        headers: headers
+      };
+    }
+    if (detected.type && (!bestLow.type || detected.missing.length < bestLow.missing.length)) {
+      bestLow = { type: detected.type, missing: detected.missing || [], headers: headers };
+    }
   }
-  if (requested !== 'AUTO' && requested !== detected.type) {
-    throw new Error('El archivo parece ' + detected.type + ', pero seleccionaste ' + requested + '. Corrige el tipo o usa Auto detectar.');
+
+  if (
+    fileNameReportType &&
+    (requested === 'AUTO' || requested === fileNameReportType) &&
+    expectedCounts[fileNameReportType] &&
+    headerRows.some(function(headers) { return (headers || []).length === expectedCounts[fileNameReportType]; })
+  ) {
+    return {
+      reportType: fileNameReportType,
+      detectedReportType: fileNameReportType,
+      headers: headerRows.filter(function(headers) { return (headers || []).length === expectedCounts[fileNameReportType]; })[0] || []
+    };
   }
-  return {
-    reportType: detected.type,
-    detectedReportType: detected.type,
-    headers: headers
-  };
+
+  if (
+    requested !== 'AUTO' &&
+    expectedCounts[requested] &&
+    (fileNameReportType === requested || retailReportExpectedCountIsUnique_(requested, expectedCounts)) &&
+    headerRows.some(function(headers) { return (headers || []).length === expectedCounts[requested]; })
+  ) {
+    return {
+      reportType: requested,
+      detectedReportType: requested,
+      headers: headerRows.filter(function(headers) { return (headers || []).length === expectedCounts[requested]; })[0] || []
+    };
+  }
+
+  if (
+    fileNameReportType &&
+    (requested === 'AUTO' || requested === fileNameReportType) &&
+    bestLow.type === fileNameReportType &&
+    (bestLow.missing || []).length <= 2
+  ) {
+    return {
+      reportType: fileNameReportType,
+      detectedReportType: fileNameReportType,
+      headers: bestLow.headers || []
+    };
+  }
+
+  if (bestLow.type) {
+    throw new Error('No pude reconocer el tipo de reporte por los encabezados. Candidato: ' + bestLow.type + '. Faltan columnas: ' + bestLow.missing.join(', ') + '.');
+  }
+  throw new Error('No pude reconocer el tipo de reporte por los encabezados. Revisa que el archivo sea un RS válido.');
 }
 
 function sanitizeDriveName_(value) {
@@ -2817,6 +3184,174 @@ function getRetailStoreUploadRootFolder_() {
   }
 }
 
+function getRetailStoreUploadTempRootFolder_() {
+  return getOrCreateChildFolder_(getRetailStoreUploadRootFolder_(), '_TEMP_UPLOADS');
+}
+
+function getRetailStoreUploadTempFolder_(uploadId) {
+  var id = String(uploadId || '').trim();
+  if (!id) throw new Error('No se encontró la sesión de carga.');
+  return DriveApp.getFolderById(id);
+}
+
+function buildRetailStoreChunkName_(index) {
+  return ('000000' + Number(index || 0)).slice(-6) + '.part';
+}
+
+function trashRetailStoreFilesByName_(folder, fileName) {
+  var files = folder.getFilesByName(fileName);
+  while (files.hasNext()) {
+    try { files.next().setTrashed(true); } catch (err) {}
+  }
+}
+
+function cleanupRetailStoreChunkedUpload_(uploadId) {
+  if (!uploadId) return;
+  try {
+    getRetailStoreUploadTempFolder_(uploadId).setTrashed(true);
+  } catch (err) {}
+}
+
+function startRetailStoreChunkedUpload(payload) {
+  try {
+    payload = payload || {};
+    var store = String(payload.store || '').trim().toUpperCase();
+    var role = String(payload.role || '').trim().toUpperCase();
+    if (!store && role !== 'ADMIN') throw new Error('No se pudo identificar la tienda.');
+    if (!store) throw new Error('Selecciona una tienda para subir el reporte.');
+    var originalName = String(payload.fileName || '').trim();
+    if (!originalName) throw new Error('El archivo no tiene nombre.');
+
+    var tempRoot = getRetailStoreUploadTempRootFolder_();
+    var uploadFolder = tempRoot.createFolder('_retail_upload_' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss') + '_' + Utilities.getUuid());
+    uploadFolder.createFile(
+      'metadata.json',
+      JSON.stringify({
+        createdAt: new Date().toISOString(),
+        store: store,
+        fileName: originalName,
+        reportType: String(payload.reportType || ''),
+        reportDate: String(payload.reportDate || '')
+      }),
+      'application/json'
+    );
+    return { success: true, uploadId: uploadFolder.getId() };
+  } catch (e) {
+    return { success: false, message: e.message };
+  }
+}
+
+function writeRetailStoreReportChunk(payload) {
+  try {
+    payload = payload || {};
+    var index = Number(payload.index);
+    var chunk = String(payload.chunk || '');
+    if (!isFinite(index) || index < 0) throw new Error('Parte de archivo inválida.');
+    if (!chunk) throw new Error('La parte del archivo llegó vacía.');
+
+    var folder = getRetailStoreUploadTempFolder_(payload.uploadId);
+    var fileName = buildRetailStoreChunkName_(index);
+    trashRetailStoreFilesByName_(folder, fileName);
+    folder.createFile(fileName, chunk, 'text/plain');
+    return { success: true, index: index };
+  } catch (e) {
+    return { success: false, message: e.message };
+  }
+}
+
+function readRetailStoreChunkedBase64_(uploadId, totalChunks) {
+  var folder = getRetailStoreUploadTempFolder_(uploadId);
+  var total = Number(totalChunks || 0);
+  if (!isFinite(total) || total <= 0) throw new Error('No se recibieron partes para el archivo.');
+
+  var base64 = '';
+  for (var i = 0; i < total; i++) {
+    var fileName = buildRetailStoreChunkName_(i);
+    var files = folder.getFilesByName(fileName);
+    if (!files.hasNext()) throw new Error('Falta una parte del archivo: ' + (i + 1) + ' de ' + total + '.');
+    base64 += files.next().getBlob().getDataAsString();
+  }
+  return base64;
+}
+
+function cancelRetailStoreChunkedUpload(uploadId) {
+  cleanupRetailStoreChunkedUpload_(uploadId);
+  return { success: true };
+}
+
+function getRetailStoreGithubHeaders_(token) {
+  return {
+    'Authorization': 'Bearer ' + token,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28'
+  };
+}
+
+function fetchRetailStoreGithubWorkflowRuns_(token, perPage) {
+  var url = 'https://api.github.com/repos/luisvelasquez-alt/retailstore-master/actions/workflows/weekly_master.yml/runs?branch=main&event=workflow_dispatch&per_page=' + (perPage || 5);
+  var response = UrlFetchApp.fetch(url, {
+    method: 'GET',
+    headers: getRetailStoreGithubHeaders_(token),
+    muteHttpExceptions: true
+  });
+  if (response.getResponseCode() < 200 || response.getResponseCode() >= 300) return [];
+  var payload = JSON.parse(response.getContentText() || '{}');
+  return payload.workflow_runs || [];
+}
+
+function findRetailStoreGithubRunAfter_(token, previousRunId) {
+  var previous = Number(previousRunId || 0);
+  var runs = fetchRetailStoreGithubWorkflowRuns_(token, 10);
+  for (var i = 0; i < runs.length; i++) {
+    var runId = Number(runs[i].id || 0);
+    if (!previous || runId > previous) return runs[i];
+  }
+  return null;
+}
+
+function waitForRetailStoreGithubRun_(token, previousRunId) {
+  for (var i = 0; i < 6; i++) {
+    var run = findRetailStoreGithubRunAfter_(token, previousRunId);
+    if (run) return run;
+    Utilities.sleep(2000);
+  }
+  return null;
+}
+
+function getRetailStoreSyncStatus(runId) {
+  try {
+    var githubToken = String(PropertiesService.getScriptProperties().getProperty('RETAILSTORE_GITHUB_TOKEN') || PropertiesService.getScriptProperties().getProperty('GITHUB_ACTIONS_TOKEN') || '').trim();
+    if (!githubToken) return { success: false, status: 'unknown', message: 'No hay token de GitHub configurado.' };
+    var id = String(runId || '').trim();
+    if (!id) return { success: false, status: 'unknown', message: 'No hay workflow para consultar.' };
+    var response = UrlFetchApp.fetch('https://api.github.com/repos/luisvelasquez-alt/retailstore-master/actions/runs/' + encodeURIComponent(id), {
+      method: 'GET',
+      headers: getRetailStoreGithubHeaders_(githubToken),
+      muteHttpExceptions: true
+    });
+    var code = response.getResponseCode();
+    if (code < 200 || code >= 300) {
+      return { success: false, status: 'unknown', message: 'GitHub respondió ' + code + ' al consultar la carga.' };
+    }
+    var run = JSON.parse(response.getContentText() || '{}');
+    var status = String(run.status || '').toLowerCase();
+    var conclusion = String(run.conclusion || '').toLowerCase();
+    var message = 'Cargando datos en Base de datos.';
+    if (status === 'completed' && conclusion === 'success') message = 'Base de datos actualizada.';
+    if (status === 'completed' && conclusion && conclusion !== 'success') message = 'La carga en Base de datos terminó con error: ' + conclusion + '.';
+    return {
+      success: true,
+      status: status,
+      conclusion: conclusion,
+      runId: run.id,
+      url: run.html_url,
+      message: message
+    };
+  } catch (e) {
+    return { success: false, status: 'unknown', message: 'No se pudo consultar GitHub Actions: ' + e.message };
+  }
+}
+
 function triggerRetailStoreSupabaseUpdate_(record) {
   var props = PropertiesService.getScriptProperties();
   var functionName = String(props.getProperty('RETAILSTORE_ETL_FUNCTION') || '').trim();
@@ -2858,27 +3393,31 @@ function triggerRetailStoreSupabaseUpdate_(record) {
   var githubToken = String(props.getProperty('RETAILSTORE_GITHUB_TOKEN') || props.getProperty('GITHUB_ACTIONS_TOKEN') || '').trim();
   if (githubToken) {
     try {
+      var previousRun = findRetailStoreGithubRunAfter_(githubToken, 0);
+      var previousRunId = previousRun && previousRun.id ? previousRun.id : '';
       var workflowUrl = 'https://api.github.com/repos/luisvelasquez-alt/retailstore-master/actions/workflows/weekly_master.yml/dispatches';
       var githubResponse = UrlFetchApp.fetch(workflowUrl, {
         method: 'POST',
         contentType: 'application/json',
-        headers: {
-          'Authorization': 'Bearer ' + githubToken,
-          'Accept': 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28'
-        },
+        headers: getRetailStoreGithubHeaders_(githubToken),
         payload: JSON.stringify({
           ref: 'main',
           inputs: {
             store_id: record.store,
-            report_type: record.reportType
+            report_type: normalizeRetailGithubReportInput_(record.reportType),
+            week_date: String(record.reportDate || '')
           }
         }),
         muteHttpExceptions: true
       });
       var githubCode = githubResponse.getResponseCode();
       if (githubCode === 204) {
-        return { status: 'SYNC_REQUESTED', message: 'Workflow de GitHub enviado para actualizar Supabase.' };
+        return {
+          status: 'SYNC_REQUESTED',
+          message: 'Workflow de GitHub enviado para actualizar Supabase.',
+          runId: '',
+          runUrl: ''
+        };
       }
       return { status: 'ERROR', message: 'Archivo guardado, pero GitHub respondió ' + githubCode + '.' };
     } catch (err3) {
@@ -2892,47 +3431,35 @@ function triggerRetailStoreSupabaseUpdate_(record) {
   };
 }
 
-function uploadRetailStoreReport(payload) {
-  var lock = LockService.getDocumentLock();
-  try {
-    lock.waitLock(20000);
+function normalizeRetailGithubReportInput_(reportType) {
+  var normalized = normalizeRetailReportType_(reportType);
+  if (normalized === 'AUTO' || normalized === 'OTRO') return '';
+  return normalized;
+}
 
+function syncRetailStoreReportsFromDrive(payload) {
+  try {
     payload = payload || {};
     var role = String(payload.role || '').trim().toUpperCase();
     var store = String(payload.store || '').trim().toUpperCase();
     if (!store && role !== 'ADMIN') throw new Error('No se pudo identificar la tienda.');
-    if (!store) throw new Error('Selecciona una tienda para subir el reporte.');
+    if (!store) throw new Error('Selecciona una tienda para sincronizar.');
 
     var requestedReportType = normalizeRetailReportType_(payload.reportType);
+    if (requestedReportType === 'OTRO') throw new Error('Selecciona Auto detectar o un reporte RS válido.');
+
     var country = normalizeCountryName_(LCW_COUNTRY_MAP[store] || payload.country || 'Sin pais');
-    var originalName = String(payload.fileName || '').trim();
-    if (!originalName) throw new Error('El archivo no tiene nombre.');
-
-    var base64 = String(payload.base64Data || '').trim();
-    if (base64.indexOf(',') > -1) base64 = base64.split(',').pop();
-    if (!base64) throw new Error('El archivo llegó vacío.');
-    var mimeType = getRetailUploadMimeType_(originalName, payload.mimeType);
-    var bytes = Utilities.base64Decode(base64);
-    var validation = validateRetailUploadReportType_(bytes, mimeType, originalName, requestedReportType);
-    var reportType = validation.reportType;
-
-    var root = getRetailStoreUploadRootFolder_();
-    var countryFolder = getOrCreateChildFolder_(root, getRetailStoreDriveCountryFolderName_(country));
-    var storeFolder = getOrCreateChildFolder_(countryFolder, store);
-
-    var standardName = buildRetailUploadFileName_(store, reportType, payload.reportDate, originalName);
-    var file = storeFolder.createFile(Utilities.newBlob(bytes, mimeType, standardName));
-
+    var syncReportLabel = normalizeRetailGithubReportInput_(requestedReportType) || 'TODOS';
     var record = {
       timestamp: new Date().toISOString(),
       store: store,
       country: country,
-      reportType: reportType,
+      reportType: requestedReportType,
       reportDate: String(payload.reportDate || ''),
-      fileName: standardName,
-      originalName: originalName,
-      fileUrl: file.getUrl(),
-      fileId: file.getId(),
+      fileName: 'DRIVE_SYNC_' + syncReportLabel,
+      originalName: 'Archivos existentes en Google Drive',
+      fileUrl: '',
+      fileId: '',
       uploadedBy: role || 'STORE'
     };
     var sync = triggerRetailStoreSupabaseUpdate_(record);
@@ -2941,22 +3468,109 @@ function uploadRetailStoreReport(payload) {
 
     var sheet = getRetailUploadLogSheet_();
     sheet.appendRow([
-      new Date(), store, country, reportType, record.reportDate, standardName,
-      originalName, file.getUrl(), file.getId(), record.uploadedBy, record.status, record.message
+      new Date(), store, country, syncReportLabel, record.reportDate, record.fileName,
+      record.originalName, '', '', record.uploadedBy, record.status, record.message
     ]);
 
     return {
-      success: true,
-      url: file.getUrl(),
-      fileName: standardName,
-      detectedReportType: validation.detectedReportType,
-      status: record.status,
-      message: record.message
+      success: sync.status !== 'ERROR',
+      status: sync.status,
+      message: sync.message,
+      reportType: syncReportLabel,
+      runId: sync.runId || '',
+      runUrl: sync.runUrl || ''
     };
+  } catch (e) {
+    return { success: false, message: e.message };
+  }
+}
+
+function processRetailStoreReportUpload_(payload) {
+  payload = payload || {};
+  var role = String(payload.role || '').trim().toUpperCase();
+  var store = String(payload.store || '').trim().toUpperCase();
+  if (!store && role !== 'ADMIN') throw new Error('No se pudo identificar la tienda.');
+  if (!store) throw new Error('Selecciona una tienda para subir el reporte.');
+
+  var requestedReportType = normalizeRetailReportType_(payload.reportType);
+  var country = normalizeCountryName_(LCW_COUNTRY_MAP[store] || payload.country || 'Sin pais');
+  var originalName = String(payload.fileName || '').trim();
+  if (!originalName) throw new Error('El archivo no tiene nombre.');
+
+  var base64 = String(payload.base64Data || '').trim();
+  if (base64.indexOf(',') > -1) base64 = base64.split(',').pop();
+  if (!base64) throw new Error('El archivo llegó vacío.');
+  var mimeType = getRetailUploadMimeType_(originalName, payload.mimeType);
+  var bytes = Utilities.base64Decode(base64);
+  var validation = validateRetailUploadReportType_(bytes, mimeType, originalName, requestedReportType);
+  var reportType = validation.reportType;
+
+  var root = getRetailStoreUploadRootFolder_();
+  var countryFolder = getOrCreateChildFolder_(root, getRetailStoreDriveCountryFolderName_(country));
+  var storeFolder = getOrCreateChildFolder_(countryFolder, store);
+
+  var standardName = buildRetailUploadFileName_(store, reportType, payload.reportDate, originalName);
+  var file = storeFolder.createFile(Utilities.newBlob(bytes, mimeType, standardName));
+
+  var record = {
+    timestamp: new Date().toISOString(),
+    store: store,
+    country: country,
+    reportType: reportType,
+    reportDate: String(payload.reportDate || ''),
+    fileName: standardName,
+    originalName: originalName,
+    fileUrl: file.getUrl(),
+    fileId: file.getId(),
+    uploadedBy: role || 'STORE'
+  };
+  var sync = triggerRetailStoreSupabaseUpdate_(record);
+  record.status = sync.status;
+  record.message = sync.message;
+
+  var sheet = getRetailUploadLogSheet_();
+  sheet.appendRow([
+    new Date(), store, country, reportType, record.reportDate, standardName,
+    originalName, file.getUrl(), file.getId(), record.uploadedBy, record.status, record.message
+  ]);
+
+  return {
+    success: true,
+    url: file.getUrl(),
+    fileName: standardName,
+    detectedReportType: validation.detectedReportType,
+    status: record.status,
+    message: record.message,
+    runId: sync.runId || '',
+    runUrl: sync.runUrl || ''
+  };
+}
+
+function uploadRetailStoreReport(payload) {
+  var lock = LockService.getDocumentLock();
+  try {
+    lock.waitLock(20000);
+    return processRetailStoreReportUpload_(payload);
   } catch (e) {
     return { success: false, message: e.message };
   } finally {
     try { lock.releaseLock(); } catch (err) {}
+  }
+}
+
+function finalizeRetailStoreReportUpload(payload) {
+  payload = payload || {};
+  var uploadId = String(payload.uploadId || '').trim();
+  var lock = LockService.getDocumentLock();
+  try {
+    payload.base64Data = readRetailStoreChunkedBase64_(uploadId, payload.totalChunks);
+    lock.waitLock(20000);
+    return processRetailStoreReportUpload_(payload);
+  } catch (e) {
+    return { success: false, message: e.message };
+  } finally {
+    try { lock.releaseLock(); } catch (err) {}
+    cleanupRetailStoreChunkedUpload_(uploadId);
   }
 }
 
